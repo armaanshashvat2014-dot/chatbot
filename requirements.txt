@@ -4,5 +4,4 @@ wikipedia
 matplotlib
 pillow
 pymupdf
-transformers
-torch
+sumy
