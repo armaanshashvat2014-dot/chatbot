@@ -12,11 +12,11 @@ from sumy.summarizers.lsa import LsaSummarizer
 st.set_page_config(page_title="SmartBot AI", layout="wide")
 
 st.title("🧠 SmartBot AI")
-st.caption("Ask questions, solve math, and analyze PDFs.")
+st.caption("Ask questions, solve math, and summarize PDFs.")
 
-# --------------------
+# -----------------------------
 # MEMORY
-# --------------------
+# -----------------------------
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -25,16 +25,14 @@ if "pdf_text" not in st.session_state:
     st.session_state.pdf_text = None
 
 
-# --------------------
+# -----------------------------
 # MATH
-# --------------------
+# -----------------------------
 
 def looks_like_math(text):
     return bool(re.match(r'^[0-9\+\-\*\/\^\(\)\.\s]+$', text))
 
-
 def solve_math(expr):
-
     try:
         result = sp.sympify(expr)
         return f"The answer is **{result}**."
@@ -42,9 +40,9 @@ def solve_math(expr):
         return None
 
 
-# --------------------
-# KNOWLEDGE
-# --------------------
+# -----------------------------
+# WIKIPEDIA KNOWLEDGE
+# -----------------------------
 
 def search_knowledge(question):
 
@@ -54,9 +52,9 @@ def search_knowledge(question):
         return None
 
 
-# --------------------
-# DIAGRAM
-# --------------------
+# -----------------------------
+# GRAPH
+# -----------------------------
 
 def draw_graph():
 
@@ -71,9 +69,9 @@ def draw_graph():
     st.pyplot(fig)
 
 
-# --------------------
+# -----------------------------
 # PDF READER
-# --------------------
+# -----------------------------
 
 def read_pdf(file):
 
@@ -87,78 +85,87 @@ def read_pdf(file):
     return text
 
 
-# --------------------
-# PDF SUMMARIZER
-# --------------------
+# -----------------------------
+# PDF SUMMARY
+# -----------------------------
 
-def summarize_text(text):
+def summarize_pdf(text):
 
     parser = PlaintextParser.from_string(text, Tokenizer("english"))
     summarizer = LsaSummarizer()
 
-    summary = summarizer(parser.document, 6)
+    summary_sentences = summarizer(parser.document, 6)
 
-    result = ""
+    summary = ""
 
-    for sentence in summary:
-        result += str(sentence) + " "
+    for sentence in summary_sentences:
+        summary += str(sentence) + " "
 
-    return result
+    return summary
 
 
-# --------------------
-# SMARTBOT BRAIN
-# --------------------
+# -----------------------------
+# SMARTBOT LOGIC
+# -----------------------------
 
 def ask_ai(prompt):
 
     text = prompt.lower()
 
-    if "who are you" in text:
-        return "I am **SmartBot AI**, your assistant for learning, answering questions, solving math, and analyzing PDFs."
+    # PDF PRIORITY
+    if st.session_state.pdf_text:
 
+        if "summary" in text or "summarize" in text:
+            return summarize_pdf(st.session_state.pdf_text)
+
+        if "pdf" in text or "document" in text:
+            return summarize_pdf(st.session_state.pdf_text)
+
+        # if user asks any question while PDF is loaded
+        return "I have a PDF loaded. Ask me to **summarize the PDF** or ask about the **document**."
+
+    # identity
+    if "who are you" in text:
+        return "I am **SmartBot AI**, a helpful assistant for learning, answering questions, and summarizing PDFs."
+
+    # greeting
     if text in ["hi","hello","hey"]:
         return "Hello! How can I help you today?"
 
+    # math command
     if text.startswith("solve:"):
         return solve_math(text.replace("solve:",""))
 
+    # detect math
     if looks_like_math(text):
         return solve_math(text)
 
+    # diagrams
     if "graph" in text or "diagram" in text:
         draw_graph()
         return "Here is a graph diagram."
 
-    # PDF QUESTIONS
-    if st.session_state.pdf_text:
-
-        if "summary" in text or "summarize" in text:
-            return summarize_text(st.session_state.pdf_text)
-
-        if "pdf" in text or "document" in text:
-            return summarize_text(st.session_state.pdf_text)
-
+    # knowledge
     knowledge = search_knowledge(prompt)
 
     if knowledge:
         return knowledge
 
-    return "I'm not sure about that yet, but I can help with science, math, history, or PDF summaries."
+    return "I'm not sure about that yet, but I can help with math, science questions, or PDF summaries."
 
 
-# --------------------
+# -----------------------------
 # CHAT DISPLAY
-# --------------------
+# -----------------------------
 
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
 
 
-# --------------------
+# -----------------------------
 # INPUT AREA
-# --------------------
+# -----------------------------
 
 st.markdown("### 💬 Ask SmartBot")
 
@@ -174,20 +181,20 @@ with col2:
     pdf_file = st.file_uploader("➕", type="pdf")
 
 
-# --------------------
-# HANDLE PDF
-# --------------------
+# -----------------------------
+# LOAD PDF
+# -----------------------------
 
 if pdf_file:
 
     st.session_state.pdf_text = read_pdf(pdf_file)
 
-    st.success("PDF uploaded! You can now ask me to summarize it.")
+    st.success("PDF uploaded! Ask me to **summarize the PDF**.")
 
 
-# --------------------
+# -----------------------------
 # ASK BUTTON
-# --------------------
+# -----------------------------
 
 if st.button("Ask") and user_prompt:
 
@@ -204,9 +211,9 @@ if st.button("Ask") and user_prompt:
     st.session_state.messages.append({"role":"assistant","content":response})
 
 
-# --------------------
-# SIDEBAR HELP
-# --------------------
+# -----------------------------
+# SIDEBAR
+# -----------------------------
 
 st.sidebar.title("Examples")
 
@@ -223,9 +230,9 @@ solve: 25*12
 
 PDF:
 
-Upload a PDF ➕  
+Upload PDF ➕  
 Then ask:
 
-summarize the pdf  
-what is the document about
+summarize the pdf
+summarize the document
 """)
