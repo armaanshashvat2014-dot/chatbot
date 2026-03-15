@@ -1,2 +1,8 @@
 streamlit
-openai
+sympy
+wikipedia
+matplotlib
+pillow
+pymupdf
+transformers
+torch
