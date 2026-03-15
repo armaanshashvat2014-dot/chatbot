@@ -2,6 +2,5 @@ streamlit
 sympy
 wikipedia
 matplotlib
-pillow
 pymupdf
-sumy
+nltk
