@@ -7,7 +7,7 @@ import re
 st.set_page_config(page_title="SmartBot AI", layout="wide")
 
 st.title("🧠 SmartBot AI")
-st.caption("A friendly assistant that answers questions, explains topics, and solves math.")
+st.caption("A friendly AI assistant that remembers your conversation.")
 
 # ------------------------
 # MEMORY
@@ -25,28 +25,24 @@ def looks_like_math(text):
 
 
 def solve_math(expr):
-
     try:
         result = sp.sympify(expr)
         return f"The answer is **{result}**."
     except:
         return None
 
-
 # ------------------------
 # KNOWLEDGE SEARCH
 # ------------------------
 
 def search_knowledge(question):
-
     try:
         return wikipedia.summary(question, sentences=4)
     except:
         return None
 
-
 # ------------------------
-# GRAPH GENERATOR
+# GRAPH
 # ------------------------
 
 def draw_graph():
@@ -61,7 +57,6 @@ def draw_graph():
 
     st.pyplot(fig)
 
-
 # ------------------------
 # SMARTBOT LOGIC
 # ------------------------
@@ -70,70 +65,81 @@ def ask_ai(prompt):
 
     text = prompt.lower()
 
-    if "who are you" in text:
-        return "I am **SmartBot AI**, a friendly assistant that helps answer questions, explain topics, and solve math problems."
-
+    # greetings
     if text in ["hi","hello","hey"]:
         return "Hello! I'm SmartBot AI. How can I help you today?"
 
+    # identity
+    if "who are you" in text:
+        return "I am **SmartBot AI**, a friendly assistant that answers questions, solves math, and explains topics."
+
+    # math command
     if text.startswith("solve:"):
         return solve_math(text.replace("solve:",""))
 
+    # detect math
     if looks_like_math(text):
         return solve_math(text)
 
+    # diagrams
     if "graph" in text or "diagram" in text:
         draw_graph()
         return "I created a graph diagram."
 
+    # knowledge
     knowledge = search_knowledge(prompt)
 
     if knowledge:
         return knowledge
 
+    # fallback
     return "That's an interesting question! Try asking about science, math, or history."
 
 # ------------------------
-# DISPLAY CHAT
+# DISPLAY CHAT HISTORY
 # ------------------------
 
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.write(msg["content"])
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.write(message["content"])
 
 # ------------------------
-# INPUT AREA
+# INPUT
 # ------------------------
 
-st.markdown("### 💬 Ask SmartBot")
+user_prompt = st.chat_input("Ask SmartBot something...")
 
-user_prompt = st.text_input(
-    "Type your question:",
-    placeholder="Example: What is photosynthesis?"
-)
+if user_prompt:
 
-if st.button("Ask") and user_prompt:
-
-    st.session_state.messages.append({"role":"user","content":user_prompt})
+    # store user message
+    st.session_state.messages.append({
+        "role": "user",
+        "content": user_prompt
+    })
 
     with st.chat_message("user"):
         st.write(user_prompt)
 
+    # generate response
     response = ask_ai(user_prompt)
 
     with st.chat_message("assistant"):
         st.write(response)
 
-    st.session_state.messages.append({"role":"assistant","content":response})
+    # store response
+    st.session_state.messages.append({
+        "role": "assistant",
+        "content": response
+    })
 
 # ------------------------
 # SIDEBAR
 # ------------------------
 
-st.sidebar.title("Examples")
+st.sidebar.title("SmartBot Examples")
 
 st.sidebar.markdown("""
-Try asking:
+Questions:
 
 What is photosynthesis  
 Explain gravity  
@@ -148,3 +154,7 @@ Graphs:
 
 draw graph
 """)
+
+# Clear chat button
+if st.sidebar.button("Clear Chat"):
+    st.session_state.messages = []
