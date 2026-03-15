@@ -2,47 +2,40 @@ import streamlit as st
 import sympy as sp
 import wikipedia
 import matplotlib.pyplot as plt
-import fitz
 import re
-import nltk
-
-from nltk.tokenize import sent_tokenize, word_tokenize
-from collections import Counter
-
-nltk.download("punkt")
 
 st.set_page_config(page_title="SmartBot AI", layout="wide")
 
 st.title("🧠 SmartBot AI")
-st.caption("Ask questions, solve math, and summarize PDFs.")
+st.caption("A friendly assistant that answers questions, explains topics, and solves math.")
 
-# -------------------------
+# ------------------------
 # MEMORY
-# -------------------------
+# ------------------------
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-if "pdf_text" not in st.session_state:
-    st.session_state.pdf_text = None
-
-# -------------------------
-# MATH
-# -------------------------
+# ------------------------
+# MATH DETECTION
+# ------------------------
 
 def looks_like_math(text):
     return bool(re.match(r'^[0-9\+\-\*\/\^\(\)\.\s]+$', text))
 
+
 def solve_math(expr):
+
     try:
         result = sp.sympify(expr)
         return f"The answer is **{result}**."
     except:
         return None
 
-# -------------------------
-# KNOWLEDGE
-# -------------------------
+
+# ------------------------
+# KNOWLEDGE SEARCH
+# ------------------------
 
 def search_knowledge(question):
 
@@ -51,9 +44,10 @@ def search_knowledge(question):
     except:
         return None
 
-# -------------------------
-# GRAPH
-# -------------------------
+
+# ------------------------
+# GRAPH GENERATOR
+# ------------------------
 
 def draw_graph():
 
@@ -67,72 +61,20 @@ def draw_graph():
 
     st.pyplot(fig)
 
-# -------------------------
-# READ PDF
-# -------------------------
 
-def read_pdf(file):
-
-    doc = fitz.open(stream=file.read(), filetype="pdf")
-
-    text = ""
-
-    for page in doc:
-        text += page.get_text()
-
-    return text
-
-# -------------------------
-# SMART PDF SUMMARIZER
-# -------------------------
-
-def summarize_pdf(text, n=6):
-
-    sentences = sent_tokenize(text)
-
-    words = word_tokenize(text.lower())
-
-    word_freq = Counter(words)
-
-    sentence_scores = {}
-
-    for sentence in sentences:
-
-        for word in word_tokenize(sentence.lower()):
-
-            if word in word_freq:
-
-                if sentence not in sentence_scores:
-                    sentence_scores[sentence] = word_freq[word]
-                else:
-                    sentence_scores[sentence] += word_freq[word]
-
-    best_sentences = sorted(sentence_scores, key=sentence_scores.get, reverse=True)[:n]
-
-    return " ".join(best_sentences)
-
-# -------------------------
-# SMARTBOT
-# -------------------------
+# ------------------------
+# SMARTBOT LOGIC
+# ------------------------
 
 def ask_ai(prompt):
 
     text = prompt.lower()
 
-    # PDF priority
-    if st.session_state.pdf_text:
-
-        if "summary" in text or "summarize" in text:
-            return summarize_pdf(st.session_state.pdf_text)
-
-        if "pdf" in text or "document" in text:
-            return summarize_pdf(st.session_state.pdf_text)
-
     if "who are you" in text:
-        return "I am **SmartBot AI**, a helpful assistant for learning and summarizing documents."
+        return "I am **SmartBot AI**, a friendly assistant that helps answer questions, explain topics, and solve math problems."
 
     if text in ["hi","hello","hey"]:
-        return "Hello! How can I help you today?"
+        return "Hello! I'm SmartBot AI. How can I help you today?"
 
     if text.startswith("solve:"):
         return solve_math(text.replace("solve:",""))
@@ -140,55 +82,35 @@ def ask_ai(prompt):
     if looks_like_math(text):
         return solve_math(text)
 
-    if "graph" in text:
+    if "graph" in text or "diagram" in text:
         draw_graph()
-        return "Here is a graph diagram."
+        return "I created a graph diagram."
 
     knowledge = search_knowledge(prompt)
 
     if knowledge:
         return knowledge
 
-    return "I'm not sure about that yet, but I can help with math, science questions, or PDF summaries."
+    return "That's an interesting question! Try asking about science, math, or history."
 
-# -------------------------
+# ------------------------
 # DISPLAY CHAT
-# -------------------------
+# ------------------------
 
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
 
-# -------------------------
+# ------------------------
 # INPUT AREA
-# -------------------------
+# ------------------------
 
 st.markdown("### 💬 Ask SmartBot")
 
-col1, col2 = st.columns([6,1])
-
-with col1:
-    user_prompt = st.text_input(
-        "Type your question:",
-        placeholder="Example: What is photosynthesis?"
-    )
-
-with col2:
-    pdf_file = st.file_uploader("➕", type="pdf")
-
-# -------------------------
-# LOAD PDF
-# -------------------------
-
-if pdf_file:
-
-    st.session_state.pdf_text = read_pdf(pdf_file)
-
-    st.success("PDF loaded successfully. Ask me to summarize it!")
-
-# -------------------------
-# ASK BUTTON
-# -------------------------
+user_prompt = st.text_input(
+    "Type your question:",
+    placeholder="Example: What is photosynthesis?"
+)
 
 if st.button("Ask") and user_prompt:
 
@@ -204,27 +126,25 @@ if st.button("Ask") and user_prompt:
 
     st.session_state.messages.append({"role":"assistant","content":response})
 
-# -------------------------
+# ------------------------
 # SIDEBAR
-# -------------------------
+# ------------------------
 
 st.sidebar.title("Examples")
 
 st.sidebar.markdown("""
-Questions:
+Try asking:
 
 What is photosynthesis  
 Explain gravity  
+Who invented computers  
 
 Math:
 
 2+2*10  
-solve: 25*12  
+solve: 45*12  
 
-PDF:
+Graphs:
 
-Upload PDF ➕  
-Then ask:
-
-summarize the pdf
+draw graph
 """)
