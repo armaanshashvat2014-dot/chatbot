@@ -6,89 +6,95 @@ from transformers import pipeline
 
 st.set_page_config(page_title="SmartBot AI", layout="wide")
 
-# TITLE
 st.title("🧠 SmartBot AI")
-st.subheader("Ask questions, solve math, search knowledge, and generate diagrams.")
+st.caption("Your friendly AI helper for learning, questions, and problem solving.")
 
-# Load open-source AI model
+# Load AI model
 @st.cache_resource
 def load_model():
     return pipeline("text-generation", model="distilgpt2")
 
 generator = load_model()
 
-# Memory
+# memory
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# -------------------
+# -----------------
 # FUNCTIONS
-# -------------------
+# -----------------
 
 def solve_math(expr):
     try:
         result = sp.sympify(expr)
-        return f"Answer: {result}"
+        return f"Sure! The answer is **{result}**."
     except:
         return None
 
 
 def wiki_search(topic):
     try:
-        return wikipedia.summary(topic, sentences=3)
+        return "Here's what I found:\n\n" + wikipedia.summary(topic, sentences=3)
     except:
-        return "Topic not found."
+        return "Sorry, I couldn't find that topic. Maybe try another question?"
 
 
 def draw_graph():
     fig, ax = plt.subplots()
 
-    x = list(range(-10, 10))
-    y = [i * i for i in x]
+    x = list(range(-10,10))
+    y = [i*i for i in x]
 
-    ax.plot(x, y)
-    ax.set_title("Graph: y = x²")
+    ax.plot(x,y)
+    ax.set_title("Example Graph: y = x²")
 
     st.pyplot(fig)
 
 
 def ask_ai(prompt):
 
-    # math
-    if prompt.startswith("solve:"):
-        return solve_math(prompt.replace("solve:", ""))
+    text = prompt.lower()
 
-    # wikipedia
-    if prompt.startswith("wiki:"):
-        return wiki_search(prompt.replace("wiki:", ""))
+    if text.startswith("solve:"):
+        return solve_math(text.replace("solve:",""))
 
-    # diagram
-    if prompt.startswith("diagram"):
+    if text.startswith("wiki:"):
+        return wiki_search(text.replace("wiki:",""))
+
+    if "diagram" in text:
         draw_graph()
-        return "Diagram generated."
+        return "I created a simple graph diagram for you."
 
-    # auto math detect
-    math = solve_math(prompt)
+    math = solve_math(text)
     if math:
         return math
 
-    # AI response
-    result = generator(prompt, max_length=60)
-    return result[0]["generated_text"]
+    # Friendly system prompt
+    friendly_prompt = f"""
+You are SmartBot AI, a kind and helpful learning assistant.
+Always respond politely and clearly.
+
+User question: {prompt}
+Answer:
+"""
+
+    result = generator(friendly_prompt, max_length=80)
+
+    return result[0]["generated_text"].replace(friendly_prompt,"")
 
 
-# -------------------
+# -----------------
 # CHAT DISPLAY
-# -------------------
+# -----------------
 
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
 
 
-# -------------------
-# QUESTION BOX
-# -------------------
+# -----------------
+# INPUT AREA
+# -----------------
 
 st.markdown("### 💬 Ask SmartBot a Question")
 
@@ -99,7 +105,7 @@ user_prompt = st.text_input(
 
 if st.button("Ask SmartBot") and user_prompt:
 
-    st.session_state.messages.append({"role": "user", "content": user_prompt})
+    st.session_state.messages.append({"role":"user","content":user_prompt})
 
     with st.chat_message("user"):
         st.write(user_prompt)
@@ -109,19 +115,21 @@ if st.button("Ask SmartBot") and user_prompt:
     with st.chat_message("assistant"):
         st.write(response)
 
-    st.session_state.messages.append({"role": "assistant", "content": response})
+    st.session_state.messages.append({"role":"assistant","content":response})
 
 
-# -------------------
-# SIDEBAR TOOLS
-# -------------------
+# -----------------
+# SIDEBAR
+# -----------------
 
 st.sidebar.title("🧰 SmartBot Tools")
 
 st.sidebar.markdown("""
-Examples:
+Examplary commands:
 
-solve: 2+2*10  
+solve: 25*12  
 wiki: black hole  
 diagram  
 """)
+
+st.sidebar.markdown("SmartBot tries to help politely and explain things clearly.")
