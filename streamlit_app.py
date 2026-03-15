@@ -2,49 +2,48 @@ import streamlit as st
 import sympy as sp
 import wikipedia
 import matplotlib.pyplot as plt
-from transformers import pipeline
+import re
 
 st.set_page_config(page_title="SmartBot AI", layout="wide")
 
 st.title("🧠 SmartBot AI")
 st.caption("A friendly AI assistant that helps answer questions and solve problems.")
 
-# Load AI model
-@st.cache_resource
-def load_model():
-    return pipeline("text-generation", model="distilgpt2")
-
-generator = load_model()
-
-# Memory
+# Chat memory
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# -----------------------
+# -------------------------
+# Check if input is math
+# -------------------------
+
+def looks_like_math(text):
+    return bool(re.match(r'^[0-9\+\-\*\/\^\(\)\.\s]+$', text))
+
+# -------------------------
 # Math Solver
-# -----------------------
+# -------------------------
 
 def solve_math(expr):
     try:
         result = sp.sympify(expr)
-        return f"Sure! The answer is **{result}**."
+        return f"The answer is **{result}**."
     except:
         return None
 
-# -----------------------
+# -------------------------
 # Knowledge Search
-# -----------------------
+# -------------------------
 
 def search_knowledge(question):
-
     try:
         return wikipedia.summary(question, sentences=3)
     except:
         return None
 
-# -----------------------
+# -------------------------
 # Diagram Generator
-# -----------------------
+# -------------------------
 
 def draw_graph():
 
@@ -58,70 +57,56 @@ def draw_graph():
 
     st.pyplot(fig)
 
-# -----------------------
-# AI Brain
-# -----------------------
+# -------------------------
+# SmartBot Brain
+# -------------------------
 
 def ask_ai(prompt):
 
     text = prompt.lower()
 
-    # identity
     if "who are you" in text:
-        return "I am **SmartBot AI**, a friendly assistant designed to help with learning, questions, and problem solving."
+        return "I am **SmartBot AI**, a friendly assistant designed to help answer questions and explain topics."
 
-    # greetings
     if text in ["hi","hello","hey"]:
         return "Hello! I'm SmartBot AI. How can I help you today?"
 
-    # math command
+    # solve command
     if text.startswith("solve:"):
         return solve_math(text.replace("solve:",""))
 
-    # detect math automatically
-    math = solve_math(text)
-    if math:
-        return math
+    # detect math only if it really looks like math
+    if looks_like_math(text):
+        return solve_math(text)
 
-    # diagram
+    # diagrams
     if "graph" in text or "diagram" in text:
         draw_graph()
-        return "I created a simple graph diagram for you."
+        return "I created a simple graph diagram."
 
     # knowledge search
     knowledge = search_knowledge(prompt)
     if knowledge:
         return knowledge
 
-    # fallback AI response
-    result = generator(
-        prompt,
-        max_length=60,
-        do_sample=True,
-        temperature=0.7,
-        repetition_penalty=1.5
-    )
+    return "That's an interesting question! I'm still learning, but try asking about science, history, or math."
 
-    answer = result[0]["generated_text"]
-
-    return answer.replace(prompt,"")
-
-# -----------------------
-# Display chat
-# -----------------------
+# -------------------------
+# Chat Display
+# -------------------------
 
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
 
-# -----------------------
-# Input box
-# -----------------------
+# -------------------------
+# Input Box
+# -------------------------
 
 st.markdown("### 💬 Ask SmartBot a Question")
 
 user_prompt = st.text_input(
-    "Type your question:",
+    "Type your question here:",
     placeholder="Example: What is photosynthesis?"
 )
 
@@ -139,17 +124,18 @@ if st.button("Ask SmartBot") and user_prompt:
 
     st.session_state.messages.append({"role":"assistant","content":response})
 
-# -----------------------
+# -------------------------
 # Sidebar
-# -----------------------
+# -------------------------
 
 st.sidebar.title("🧰 SmartBot Tools")
 
 st.sidebar.markdown("""
 Examples you can try:
 
+2+2*10  
 solve: 45*12  
 What is photosynthesis  
 Who invented computers  
-Draw graph  
+Draw graph
 """)
