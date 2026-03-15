@@ -1,25 +1,30 @@
 import streamlit as st
 import sympy as sp
 import wikipedia
-import random
 import matplotlib.pyplot as plt
 from transformers import pipeline
-from PIL import Image
-import fitz
 
-st.set_page_config(page_title="UltraAI", layout="wide")
+st.set_page_config(page_title="SmartBot AI", layout="wide")
 
-st.title("🧠 UltraAI Lab")
-st.caption("GitHub Open-Source AI Assistant")
+# TITLE
+st.title("🧠 SmartBot AI")
+st.subheader("Ask questions, solve math, search knowledge, and generate diagrams.")
 
-# load open source AI model
-generator = pipeline("text-generation", model="distilgpt2")
+# Load open-source AI model
+@st.cache_resource
+def load_model():
+    return pipeline("text-generation", model="distilgpt2")
 
-# chat memory
+generator = load_model()
+
+# Memory
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# math solver
+# -------------------
+# FUNCTIONS
+# -------------------
+
 def solve_math(expr):
     try:
         result = sp.sympify(expr)
@@ -27,81 +32,96 @@ def solve_math(expr):
     except:
         return None
 
-# wikipedia
-def wiki(topic):
+
+def wiki_search(topic):
     try:
         return wikipedia.summary(topic, sentences=3)
     except:
         return "Topic not found."
 
-# diagram generator
+
 def draw_graph():
     fig, ax = plt.subplots()
-    x = list(range(-10,10))
-    y = [i*i for i in x]
-    ax.plot(x,y)
-    ax.set_title("y = x²")
+
+    x = list(range(-10, 10))
+    y = [i * i for i in x]
+
+    ax.plot(x, y)
+    ax.set_title("Graph: y = x²")
+
     st.pyplot(fig)
 
-# pdf reader
-def read_pdf(file):
-    doc = fitz.open(stream=file.read(), filetype="pdf")
-    text = ""
-    for page in doc:
-        text += page.get_text()
-    return text[:800]
 
-# AI brain
 def ask_ai(prompt):
 
+    # math
     if prompt.startswith("solve:"):
-        return solve_math(prompt.replace("solve:",""))
+        return solve_math(prompt.replace("solve:", ""))
 
+    # wikipedia
     if prompt.startswith("wiki:"):
-        return wiki(prompt.replace("wiki:",""))
+        return wiki_search(prompt.replace("wiki:", ""))
 
+    # diagram
     if prompt.startswith("diagram"):
         draw_graph()
-        return "Graph generated."
+        return "Diagram generated."
 
+    # auto math detect
     math = solve_math(prompt)
     if math:
         return math
 
+    # AI response
     result = generator(prompt, max_length=60)
     return result[0]["generated_text"]
 
-# display messages
+
+# -------------------
+# CHAT DISPLAY
+# -------------------
+
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
 
-# input
-if prompt := st.chat_input("Ask anything..."):
 
-    st.session_state.messages.append({"role":"user","content":prompt})
+# -------------------
+# QUESTION BOX
+# -------------------
+
+st.markdown("### 💬 Ask SmartBot a Question")
+
+user_prompt = st.text_input(
+    "Type your question here:",
+    placeholder="Example: What is gravity? or solve: 25*12"
+)
+
+if st.button("Ask SmartBot") and user_prompt:
+
+    st.session_state.messages.append({"role": "user", "content": user_prompt})
 
     with st.chat_message("user"):
-        st.write(prompt)
+        st.write(user_prompt)
 
-    response = ask_ai(prompt)
+    response = ask_ai(user_prompt)
 
     with st.chat_message("assistant"):
         st.write(response)
 
-    st.session_state.messages.append({"role":"assistant","content":response})
+    st.session_state.messages.append({"role": "assistant", "content": response})
 
-# sidebar tools
-st.sidebar.title("AI Tools")
 
-img = st.sidebar.file_uploader("Upload Image", type=["png","jpg"])
+# -------------------
+# SIDEBAR TOOLS
+# -------------------
 
-if img:
-    image = Image.open(img)
-    st.sidebar.image(image)
-    st.sidebar.write(f"Image size: {image.size}")
+st.sidebar.title("🧰 SmartBot Tools")
 
-pdf = st.sidebar.file_uploader("Upload PDF", type="pdf")
+st.sidebar.markdown("""
+Examples:
 
-if pdf:
-    st.sidebar.write(read_pdf(pdf))
+solve: 2+2*10  
+wiki: black hole  
+diagram  
+""")
