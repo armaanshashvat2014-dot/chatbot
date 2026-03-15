@@ -7,25 +7,22 @@ from transformers import pipeline
 st.set_page_config(page_title="SmartBot AI", layout="wide")
 
 st.title("🧠 SmartBot AI")
-st.caption("A friendly AI assistant for learning, questions, and problem solving.")
+st.caption("A friendly AI assistant that helps answer questions and solve problems.")
 
-# Load open-source AI model
+# Load AI model
 @st.cache_resource
 def load_model():
-    return pipeline(
-        "text-generation",
-        model="distilgpt2"
-    )
+    return pipeline("text-generation", model="distilgpt2")
 
 generator = load_model()
 
-# Chat memory
+# Memory
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# -------------------------
-# MATH SOLVER
-# -------------------------
+# -----------------------
+# Math Solver
+# -----------------------
 
 def solve_math(expr):
     try:
@@ -34,19 +31,20 @@ def solve_math(expr):
     except:
         return None
 
-# -------------------------
-# WIKIPEDIA SEARCH
-# -------------------------
+# -----------------------
+# Knowledge Search
+# -----------------------
 
-def wiki_search(topic):
+def search_knowledge(question):
+
     try:
-        return "Here is what I found:\n\n" + wikipedia.summary(topic, sentences=3)
+        return wikipedia.summary(question, sentences=3)
     except:
-        return "Sorry, I couldn't find that topic. Please try asking in another way."
+        return None
 
-# -------------------------
-# DIAGRAM GENERATOR
-# -------------------------
+# -----------------------
+# Diagram Generator
+# -----------------------
 
 def draw_graph():
 
@@ -60,9 +58,9 @@ def draw_graph():
 
     st.pyplot(fig)
 
-# -------------------------
-# SMART AI BRAIN
-# -------------------------
+# -----------------------
+# AI Brain
+# -----------------------
 
 def ask_ai(prompt):
 
@@ -70,9 +68,9 @@ def ask_ai(prompt):
 
     # identity
     if "who are you" in text:
-        return "I am **SmartBot AI**, your friendly assistant. I help answer questions, solve math problems, explain science, and assist with learning."
+        return "I am **SmartBot AI**, a friendly assistant designed to help with learning, questions, and problem solving."
 
-    # greeting
+    # greetings
     if text in ["hi","hello","hey"]:
         return "Hello! I'm SmartBot AI. How can I help you today?"
 
@@ -80,32 +78,25 @@ def ask_ai(prompt):
     if text.startswith("solve:"):
         return solve_math(text.replace("solve:",""))
 
-    # wikipedia command
-    if text.startswith("wiki:"):
-        return wiki_search(text.replace("wiki:",""))
-
-    # diagram
-    if "diagram" in text or "graph" in text:
-        draw_graph()
-        return "I created a simple graph diagram for you."
-
     # detect math automatically
     math = solve_math(text)
     if math:
         return math
 
-    # AI response
-    prompt_text = f"""
-You are SmartBot AI, a kind, intelligent assistant for students.
-Always respond clearly, politely, and helpfully.
+    # diagram
+    if "graph" in text or "diagram" in text:
+        draw_graph()
+        return "I created a simple graph diagram for you."
 
-User question: {prompt}
-Answer:
-"""
+    # knowledge search
+    knowledge = search_knowledge(prompt)
+    if knowledge:
+        return knowledge
 
+    # fallback AI response
     result = generator(
-        prompt_text,
-        max_length=80,
+        prompt,
+        max_length=60,
         do_sample=True,
         temperature=0.7,
         repetition_penalty=1.5
@@ -113,25 +104,25 @@ Answer:
 
     answer = result[0]["generated_text"]
 
-    return answer.replace(prompt_text,"")
+    return answer.replace(prompt,"")
 
-# -------------------------
-# CHAT DISPLAY
-# -------------------------
+# -----------------------
+# Display chat
+# -----------------------
 
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
 
-# -------------------------
-# QUESTION INPUT
-# -------------------------
+# -----------------------
+# Input box
+# -----------------------
 
 st.markdown("### 💬 Ask SmartBot a Question")
 
 user_prompt = st.text_input(
-    "Type your question here:",
-    placeholder="Example: What is gravity? or solve: 25*12"
+    "Type your question:",
+    placeholder="Example: What is photosynthesis?"
 )
 
 if st.button("Ask SmartBot") and user_prompt:
@@ -148,22 +139,17 @@ if st.button("Ask SmartBot") and user_prompt:
 
     st.session_state.messages.append({"role":"assistant","content":response})
 
-# -------------------------
-# SIDEBAR
-# -------------------------
+# -----------------------
+# Sidebar
+# -----------------------
 
 st.sidebar.title("🧰 SmartBot Tools")
 
 st.sidebar.markdown("""
-Example commands you can try:
+Examples you can try:
 
-solve: 25*12  
-wiki: solar system  
-draw graph  
-
-Or ask normal questions like:
-
-• What is gravity?  
-• Who invented computers?  
-• Explain photosynthesis  
+solve: 45*12  
+What is photosynthesis  
+Who invented computers  
+Draw graph  
 """)
