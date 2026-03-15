@@ -12,32 +12,39 @@ from sumy.summarizers.lsa import LsaSummarizer
 st.set_page_config(page_title="SmartBot AI", layout="wide")
 
 st.title("🧠 SmartBot AI")
-st.caption("A helpful AI that answers questions, solves math, explains topics, and summarizes PDFs.")
+st.caption("Ask questions, solve math, and analyze PDFs.")
 
-# -----------------------------
-# CHAT MEMORY
-# -----------------------------
+# --------------------
+# MEMORY
+# --------------------
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# -----------------------------
-# MATH DETECTION
-# -----------------------------
+if "pdf_text" not in st.session_state:
+    st.session_state.pdf_text = None
+
+
+# --------------------
+# MATH
+# --------------------
 
 def looks_like_math(text):
     return bool(re.match(r'^[0-9\+\-\*\/\^\(\)\.\s]+$', text))
 
+
 def solve_math(expr):
+
     try:
         result = sp.sympify(expr)
         return f"The answer is **{result}**."
     except:
         return None
 
-# -----------------------------
-# KNOWLEDGE SEARCH
-# -----------------------------
+
+# --------------------
+# KNOWLEDGE
+# --------------------
 
 def search_knowledge(question):
 
@@ -46,9 +53,10 @@ def search_knowledge(question):
     except:
         return None
 
-# -----------------------------
-# DIAGRAM GENERATOR
-# -----------------------------
+
+# --------------------
+# DIAGRAM
+# --------------------
 
 def draw_graph():
 
@@ -62,9 +70,10 @@ def draw_graph():
 
     st.pyplot(fig)
 
-# -----------------------------
+
+# --------------------
 # PDF READER
-# -----------------------------
+# --------------------
 
 def read_pdf(file):
 
@@ -77,16 +86,17 @@ def read_pdf(file):
 
     return text
 
-# -----------------------------
+
+# --------------------
 # PDF SUMMARIZER
-# -----------------------------
+# --------------------
 
 def summarize_text(text):
 
     parser = PlaintextParser.from_string(text, Tokenizer("english"))
     summarizer = LsaSummarizer()
 
-    summary = summarizer(parser.document, 5)
+    summary = summarizer(parser.document, 6)
 
     result = ""
 
@@ -95,19 +105,20 @@ def summarize_text(text):
 
     return result
 
-# -----------------------------
+
+# --------------------
 # SMARTBOT BRAIN
-# -----------------------------
+# --------------------
 
 def ask_ai(prompt):
 
     text = prompt.lower()
 
     if "who are you" in text:
-        return "I am **SmartBot AI**, a friendly assistant that helps explain topics, solve math problems, and summarize documents."
+        return "I am **SmartBot AI**, your assistant for learning, answering questions, solving math, and analyzing PDFs."
 
     if text in ["hi","hello","hey"]:
-        return "Hello! I'm SmartBot AI. What would you like to learn today?"
+        return "Hello! How can I help you today?"
 
     if text.startswith("solve:"):
         return solve_math(text.replace("solve:",""))
@@ -117,33 +128,66 @@ def ask_ai(prompt):
 
     if "graph" in text or "diagram" in text:
         draw_graph()
-        return "I created a graph diagram for you."
+        return "Here is a graph diagram."
+
+    # PDF QUESTIONS
+    if st.session_state.pdf_text:
+
+        if "summary" in text or "summarize" in text:
+            return summarize_text(st.session_state.pdf_text)
+
+        if "pdf" in text or "document" in text:
+            return summarize_text(st.session_state.pdf_text)
 
     knowledge = search_knowledge(prompt)
 
     if knowledge:
         return knowledge
 
-    return "I'm not completely sure about that yet, but try asking about science, history, math, or upload a PDF for me to summarize."
+    return "I'm not sure about that yet, but I can help with science, math, history, or PDF summaries."
 
-# -----------------------------
-# DISPLAY CHAT
-# -----------------------------
+
+# --------------------
+# CHAT DISPLAY
+# --------------------
 
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
 
-# -----------------------------
-# QUESTION INPUT
-# -----------------------------
+
+# --------------------
+# INPUT AREA
+# --------------------
 
 st.markdown("### 💬 Ask SmartBot")
 
-user_prompt = st.text_input(
-    "Type your question:",
-    placeholder="Example: What is photosynthesis?"
-)
+col1, col2 = st.columns([6,1])
+
+with col1:
+    user_prompt = st.text_input(
+        "Type your question:",
+        placeholder="Example: What is photosynthesis?"
+    )
+
+with col2:
+    pdf_file = st.file_uploader("➕", type="pdf")
+
+
+# --------------------
+# HANDLE PDF
+# --------------------
+
+if pdf_file:
+
+    st.session_state.pdf_text = read_pdf(pdf_file)
+
+    st.success("PDF uploaded! You can now ask me to summarize it.")
+
+
+# --------------------
+# ASK BUTTON
+# --------------------
 
 if st.button("Ask") and user_prompt:
 
@@ -159,44 +203,29 @@ if st.button("Ask") and user_prompt:
 
     st.session_state.messages.append({"role":"assistant","content":response})
 
-# -----------------------------
-# PDF TOOL
-# -----------------------------
 
-st.sidebar.title("📄 PDF Analyzer")
-
-pdf_file = st.sidebar.file_uploader("Upload a PDF", type="pdf")
-
-if pdf_file:
-
-    text = read_pdf(pdf_file)
-
-    st.sidebar.write("### PDF Summary")
-
-    summary = summarize_text(text)
-
-    st.sidebar.write(summary)
-
-# -----------------------------
+# --------------------
 # SIDEBAR HELP
-# -----------------------------
+# --------------------
 
-st.sidebar.title("🧰 Examples")
+st.sidebar.title("Examples")
 
 st.sidebar.markdown("""
-Try asking:
+Questions:
 
 What is photosynthesis  
-Who invented computers  
-What is gravity  
+Explain gravity  
 
 Math:
 
 2+2*10  
 solve: 25*12  
 
-Tools:
+PDF:
 
-draw graph  
-Upload a PDF to summarize it
+Upload a PDF ➕  
+Then ask:
+
+summarize the pdf  
+what is the document about
 """)
