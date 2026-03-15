@@ -7,22 +7,25 @@ from transformers import pipeline
 st.set_page_config(page_title="SmartBot AI", layout="wide")
 
 st.title("🧠 SmartBot AI")
-st.caption("Your friendly AI helper for learning, questions, and problem solving.")
+st.caption("A friendly AI assistant for learning, questions, and problem solving.")
 
-# Load AI model
+# Load open-source AI model
 @st.cache_resource
 def load_model():
-    return pipeline("text-generation", model="distilgpt2")
+    return pipeline(
+        "text-generation",
+        model="distilgpt2"
+    )
 
 generator = load_model()
 
-# memory
+# Chat memory
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# -----------------
-# FUNCTIONS
-# -----------------
+# -------------------------
+# MATH SOLVER
+# -------------------------
 
 def solve_math(expr):
     try:
@@ -31,15 +34,22 @@ def solve_math(expr):
     except:
         return None
 
+# -------------------------
+# WIKIPEDIA SEARCH
+# -------------------------
 
 def wiki_search(topic):
     try:
-        return "Here's what I found:\n\n" + wikipedia.summary(topic, sentences=3)
+        return "Here is what I found:\n\n" + wikipedia.summary(topic, sentences=3)
     except:
-        return "Sorry, I couldn't find that topic. Maybe try another question?"
+        return "Sorry, I couldn't find that topic. Please try asking in another way."
 
+# -------------------------
+# DIAGRAM GENERATOR
+# -------------------------
 
 def draw_graph():
+
     fig, ax = plt.subplots()
 
     x = list(range(-10,10))
@@ -50,51 +60,72 @@ def draw_graph():
 
     st.pyplot(fig)
 
+# -------------------------
+# SMART AI BRAIN
+# -------------------------
 
 def ask_ai(prompt):
 
     text = prompt.lower()
 
+    # identity
+    if "who are you" in text:
+        return "I am **SmartBot AI**, your friendly assistant. I help answer questions, solve math problems, explain science, and assist with learning."
+
+    # greeting
+    if text in ["hi","hello","hey"]:
+        return "Hello! I'm SmartBot AI. How can I help you today?"
+
+    # math command
     if text.startswith("solve:"):
         return solve_math(text.replace("solve:",""))
 
+    # wikipedia command
     if text.startswith("wiki:"):
         return wiki_search(text.replace("wiki:",""))
 
-    if "diagram" in text:
+    # diagram
+    if "diagram" in text or "graph" in text:
         draw_graph()
         return "I created a simple graph diagram for you."
 
+    # detect math automatically
     math = solve_math(text)
     if math:
         return math
 
-    # Friendly system prompt
-    friendly_prompt = f"""
-You are SmartBot AI, a kind and helpful learning assistant.
-Always respond politely and clearly.
+    # AI response
+    prompt_text = f"""
+You are SmartBot AI, a kind, intelligent assistant for students.
+Always respond clearly, politely, and helpfully.
 
 User question: {prompt}
 Answer:
 """
 
-    result = generator(friendly_prompt, max_length=80)
+    result = generator(
+        prompt_text,
+        max_length=80,
+        do_sample=True,
+        temperature=0.7,
+        repetition_penalty=1.5
+    )
 
-    return result[0]["generated_text"].replace(friendly_prompt,"")
+    answer = result[0]["generated_text"]
 
+    return answer.replace(prompt_text,"")
 
-# -----------------
+# -------------------------
 # CHAT DISPLAY
-# -----------------
+# -------------------------
 
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
 
-
-# -----------------
-# INPUT AREA
-# -----------------
+# -------------------------
+# QUESTION INPUT
+# -------------------------
 
 st.markdown("### 💬 Ask SmartBot a Question")
 
@@ -117,19 +148,22 @@ if st.button("Ask SmartBot") and user_prompt:
 
     st.session_state.messages.append({"role":"assistant","content":response})
 
-
-# -----------------
+# -------------------------
 # SIDEBAR
-# -----------------
+# -------------------------
 
 st.sidebar.title("🧰 SmartBot Tools")
 
 st.sidebar.markdown("""
-Examplary commands:
+Example commands you can try:
 
 solve: 25*12  
-wiki: black hole  
-diagram  
-""")
+wiki: solar system  
+draw graph  
 
-st.sidebar.markdown("SmartBot tries to help politely and explain things clearly.")
+Or ask normal questions like:
+
+• What is gravity?  
+• Who invented computers?  
+• Explain photosynthesis  
+""")
