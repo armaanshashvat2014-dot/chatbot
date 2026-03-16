@@ -393,10 +393,6 @@ Math
 Graphs  
 plot y=x^2  
 
-Diagrams  
-pic of atom  
-draw plant cell  
-
 Knowledge  
 Who was Napoleon  
 
