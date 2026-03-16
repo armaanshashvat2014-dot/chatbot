@@ -59,7 +59,7 @@ def add_message(role,text):
 
 def looks_like_math(text):
 
-    return bool(re.match(r'^[0-9a-zA-Z\+\-\*\/\^\(\)\.\s=]+$', text))
+    return bool(re.match(r'^0123456789+-*/^=().x', text))
 
 
 def solve_math(expr):
