@@ -2,3 +2,7 @@ streamlit
 sympy
 wikipedia
 matplotlib
+numpy
+requests
+PyPDF2
+duckduckgo-search
