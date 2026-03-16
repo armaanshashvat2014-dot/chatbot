@@ -123,6 +123,13 @@ def ask_ai(prompt):
 
     if "who are you" in text:
         return "I am SmartBot AI, a knowledge assistant that helps explain topics, solve math, and generate diagrams."
+if "Are you smart" in text:
+        return "I am an AI, a knowledge assisant. It is your wish to decide it."
+if "You are smart" in text:
+        return "Thanks for the compliment."
+    if "You are dumb, You are average, You are bad" in text:
+        return "Thanks for letting me know, I shall improve myself.Please note that as an AI, I do not know human experiences or knowledge"
+
 
     if text.startswith("solve:"):
         return solve_math(text.replace("solve:",""))
