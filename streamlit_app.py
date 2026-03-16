@@ -2,159 +2,210 @@ import streamlit as st
 import sympy as sp
 import wikipedia
 import matplotlib.pyplot as plt
+import numpy as np
 import re
 
 st.set_page_config(page_title="SmartBot AI", layout="wide")
 
 st.title("🧠 SmartBot AI")
-st.caption("A friendly AI assistant that remembers your conversation.")
+st.caption("Ask about math, science, history, and generate diagrams.")
 
-# ------------------------
+# -------------------
 # MEMORY
-# ------------------------
+# -------------------
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# ------------------------
-# MATH DETECTION
-# ------------------------
+# -------------------
+# MATH
+# -------------------
 
 def looks_like_math(text):
-    return bool(re.match(r'^[0-9\+\-\*\/\^\(\)\.\s]+$', text))
-
+    return bool(re.match(r'^[0-9a-zA-Z\+\-\*\/\^\(\)\.\s=]+$', text))
 
 def solve_math(expr):
+
     try:
-        result = sp.sympify(expr)
-        return f"The answer is **{result}**."
+        x = sp.symbols('x')
+
+        if "=" in expr:
+            left,right = expr.split("=")
+            equation = sp.Eq(sp.sympify(left), sp.sympify(right))
+            solution = sp.solve(equation)
+
+            return f"The solution is **{solution}**."
+
+        result = sp.simplify(expr)
+
+        return f"The simplified result is **{result}**."
+
     except:
         return None
 
-# ------------------------
-# KNOWLEDGE SEARCH
-# ------------------------
+# -------------------
+# KNOWLEDGE
+# -------------------
 
 def search_knowledge(question):
+
     try:
         return wikipedia.summary(question, sentences=4)
     except:
         return None
 
-# ------------------------
-# GRAPH
-# ------------------------
+# -------------------
+# DIAGRAM GENERATOR
+# -------------------
 
-def draw_graph():
+def draw_diagram(topic):
+
+    topic = topic.lower()
 
     fig, ax = plt.subplots()
 
-    x = list(range(-10,10))
-    y = [i*i for i in x]
+    if "triangle" in topic:
 
-    ax.plot(x,y)
-    ax.set_title("Example Graph: y = x²")
+        ax.plot([0,1],[0,0])
+        ax.plot([1,0.5],[0,1])
+        ax.plot([0.5,0],[1,0])
+        ax.set_title("Triangle")
+
+    elif "circle" in topic:
+
+        circle = plt.Circle((0,0),1,fill=False)
+        ax.add_patch(circle)
+        ax.set_xlim(-2,2)
+        ax.set_ylim(-2,2)
+        ax.set_title("Circle Diagram")
+
+    elif "graph" in topic:
+
+        x = np.linspace(-10,10,100)
+        y = x**2
+        ax.plot(x,y)
+        ax.set_title("Graph of y = x²")
+
+    elif "plant cell" in topic:
+
+        ax.add_patch(plt.Rectangle((0.2,0.2),0.6,0.6))
+        ax.text(0.5,0.5,"Nucleus",ha="center")
+        ax.set_title("Simple Plant Cell")
+
+    else:
+
+        ax.text(0.3,0.5,"Diagram Not Available",size=15)
 
     st.pyplot(fig)
 
-# ------------------------
-# SMARTBOT LOGIC
-# ------------------------
+# -------------------
+# SIMPLIFIER
+# -------------------
+
+def simplify_text(text):
+
+    sentences = text.split(".")
+
+    short = sentences[:2]
+
+    return " ".join(short) + "."
+
+# -------------------
+# SMARTBOT
+# -------------------
 
 def ask_ai(prompt):
 
     text = prompt.lower()
 
-    # greetings
     if text in ["hi","hello","hey"]:
-        return "Hello! I'm SmartBot AI. How can I help you today?"
+        return "Hello! I'm SmartBot AI. Ask me anything about math, science, or history."
 
-    # identity
     if "who are you" in text:
-        return "I am **SmartBot AI**, a friendly assistant that answers questions, solves math, and explains topics."
+        return "I am SmartBot AI, a knowledge assistant that helps explain topics, solve math, and generate diagrams."
 
-    # math command
     if text.startswith("solve:"):
         return solve_math(text.replace("solve:",""))
 
-    # detect math
     if looks_like_math(text):
-        return solve_math(text)
+        math = solve_math(text)
 
-    # diagrams
-    if "graph" in text or "diagram" in text:
-        draw_graph()
-        return "I created a graph diagram."
+        if math:
+            return math
 
-    # knowledge
+    if "diagram" in text or "draw" in text:
+
+        draw_diagram(text)
+
+        return "Here is the diagram."
+
     knowledge = search_knowledge(prompt)
 
     if knowledge:
+
+        if "simple" in text or "simplify" in text:
+            return simplify_text(knowledge)
+
         return knowledge
 
-    # fallback
-    return "That's an interesting question! Try asking about science, math, or history."
+    return "I'm not sure about that yet, but try asking about science, history, or math."
 
-# ------------------------
-# DISPLAY CHAT HISTORY
-# ------------------------
+# -------------------
+# DISPLAY CHAT
+# -------------------
 
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.write(message["content"])
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.write(msg["content"])
 
-# ------------------------
+# -------------------
 # INPUT
-# ------------------------
+# -------------------
 
-user_prompt = st.chat_input("Ask SmartBot something...")
+user_prompt = st.chat_input("Ask SmartBot...")
 
 if user_prompt:
 
-    # store user message
-    st.session_state.messages.append({
-        "role": "user",
-        "content": user_prompt
-    })
+    st.session_state.messages.append({"role":"user","content":user_prompt})
 
     with st.chat_message("user"):
         st.write(user_prompt)
 
-    # generate response
     response = ask_ai(user_prompt)
 
     with st.chat_message("assistant"):
         st.write(response)
 
-    # store response
-    st.session_state.messages.append({
-        "role": "assistant",
-        "content": response
-    })
+    st.session_state.messages.append({"role":"assistant","content":response})
 
-# ------------------------
+# -------------------
 # SIDEBAR
-# ------------------------
+# -------------------
 
-st.sidebar.title("SmartBot Examples")
+st.sidebar.title("Examples")
 
 st.sidebar.markdown("""
-Questions:
+History
+
+Who was Napoleon  
+What caused World War 1  
+
+Science
 
 What is photosynthesis  
 Explain gravity  
-Who invented computers  
 
-Math:
+Math
 
-2+2*10  
-solve: 45*12  
+2*x + 4 = 10  
+simplify x^2 + 2*x + 1  
 
-Graphs:
+Diagrams
 
+draw triangle diagram  
+draw plant cell diagram  
 draw graph
 """)
 
-# Clear chat button
 if st.sidebar.button("Clear Chat"):
     st.session_state.messages = []
