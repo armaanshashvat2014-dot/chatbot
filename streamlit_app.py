@@ -8,13 +8,13 @@ import re
 from PyPDF2 import PdfReader
 from duckduckgo_search import DDGS
 
-st.set_page_config(page_title="SmartBot v6", layout="wide")
+st.set_page_config(page_title="SmartBot v7", layout="wide")
 
-st.title("🧠 SmartBot AI-For anyone and everyone")
+st.title("🧠 SmartBot-your mentor, upgraded")
 st.caption("Math • Diagrams • Knowledge • Web Search • Simplified Learning")
 
 # -------------------------
-# SESSION STATE
+# SESSION MEMORY
 # -------------------------
 
 if "chats" not in st.session_state:
@@ -23,10 +23,6 @@ if "chats" not in st.session_state:
 if "current_chat" not in st.session_state:
     st.session_state.current_chat = None
 
-
-# -------------------------
-# CHAT SYSTEM
-# -------------------------
 
 def new_chat():
 
@@ -59,7 +55,9 @@ def add_message(role,text):
 
 def looks_like_math(text):
 
-    return bool(re.match(r'^0123456789+-*/^=().x', text))
+    math_chars = "0123456789+-*/^=().x "
+
+    return all(c.lower() in math_chars for c in text)
 
 
 def solve_math(expr):
@@ -128,11 +126,16 @@ def search_wikipedia(q):
 
     try:
 
-        return wikipedia.summary(q, sentences=3)
+        results = wikipedia.search(q)
+
+        if results:
+
+            return wikipedia.summary(results[0], sentences=3)
 
     except:
+        pass
 
-        return None
+    return None
 
 
 # -------------------------
@@ -157,8 +160,7 @@ def web_search(q):
                 return answer
 
     except:
-
-        return None
+        pass
 
     return None
 
@@ -183,14 +185,13 @@ def simplify_text(text):
     }
 
     for k,v in replacements.items():
-
         result=result.replace(k,v)
 
     return "🧠 Simple explanation:\n\n"+result+"."
 
 
 # -------------------------
-# DIAGRAM SEARCH
+# IMAGE / DIAGRAM SEARCH
 # -------------------------
 
 def get_diagram(topic):
@@ -204,11 +205,9 @@ def get_diagram(topic):
         data=res.json()
 
         if "thumbnail" in data:
-
             return data["thumbnail"]["source"]
 
     except:
-
         pass
 
     return None
@@ -270,16 +269,23 @@ def smartbot(prompt):
         expr=text.replace("plot","").replace("graph","").replace("y=","").strip()
 
         if plot_function(expr):
-
             return f"Graph generated for **{expr}**."
 
-    # diagram
-    if "draw" in text or "diagram" in text or "show" in text:
+    # diagram / image detection
+    if any(word in text for word in [
+        "draw","diagram","show","image","picture","pic","photo"
+    ]):
 
-        topic=text.replace("draw","").replace("diagram","").replace("show","").strip()
+        topic=text
+
+        for w in [
+            "draw","diagram","show","image","picture","pic","photo","of"
+        ]:
+            topic=topic.replace(w,"")
+
+        topic=topic.strip()
 
         if show_diagram(topic):
-
             return f"Here is a diagram of **{topic}**."
 
     # wikipedia
@@ -288,12 +294,11 @@ def smartbot(prompt):
     if knowledge:
 
         if "simple" in text or "simplify" in text:
-
             return simplify_text(knowledge)
 
         return knowledge
 
-    # web search fallback
+    # web fallback
     web=web_search(prompt)
 
     if web:
@@ -348,7 +353,6 @@ messages=st.session_state.chats[chat]["messages"]
 for msg in messages:
 
     with st.chat_message(msg["role"]):
-
         st.write(msg["content"])
 
 
@@ -376,7 +380,7 @@ if prompt:
 
 
 # -------------------------
-# EXAMPLES
+# HELP
 # -------------------------
 
 st.sidebar.markdown("### Example Prompts")
@@ -390,14 +394,12 @@ Graphs
 plot y=x^2  
 
 Diagrams  
+pic of atom  
 draw plant cell  
 
 Knowledge  
-What is gravity  
+Who was Napoleon  
 
 Simplify  
-Explain gravity simply  
-
-Web Search  
-What happened in 2024 AI news
+Explain gravity simply
 """)
