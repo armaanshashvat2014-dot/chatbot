@@ -3,216 +3,401 @@ import sympy as sp
 import wikipedia
 import matplotlib.pyplot as plt
 import numpy as np
+import requests
 import re
+from PyPDF2 import PdfReader
+from duckduckgo_search import DDGS
 
-st.set_page_config(page_title="SmartBot AI", layout="wide")
+st.set_page_config(page_title="SmartBot v6", layout="wide")
 
-st.title("🧠 SmartBot AI")
-st.caption("Ask about math, science, history, and generate diagrams.")
+st.title("🧠 SmartBot AI-For anyone and everyone")
+st.caption("Math • Diagrams • Knowledge • Web Search • Simplified Learning")
 
-# -------------------
-# MEMORY
-# -------------------
+# -------------------------
+# SESSION STATE
+# -------------------------
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+if "chats" not in st.session_state:
+    st.session_state.chats = {}
 
-# -------------------
-# MATH
-# -------------------
+if "current_chat" not in st.session_state:
+    st.session_state.current_chat = None
+
+
+# -------------------------
+# CHAT SYSTEM
+# -------------------------
+
+def new_chat():
+
+    cid = f"chat{len(st.session_state.chats)+1}"
+
+    st.session_state.chats[cid] = {
+        "title":"New Chat",
+        "messages":[]
+    }
+
+    st.session_state.current_chat = cid
+
+
+def add_message(role,text):
+
+    chat = st.session_state.current_chat
+
+    st.session_state.chats[chat]["messages"].append({
+        "role":role,
+        "content":text
+    })
+
+    if st.session_state.chats[chat]["title"]=="New Chat":
+        st.session_state.chats[chat]["title"]=text[:30]
+
+
+# -------------------------
+# MATH ENGINE
+# -------------------------
 
 def looks_like_math(text):
+
     return bool(re.match(r'^[0-9a-zA-Z\+\-\*\/\^\(\)\.\s=]+$', text))
+
 
 def solve_math(expr):
 
     try:
-        x = sp.symbols('x')
+
+        x=sp.symbols('x')
 
         if "=" in expr:
-            left,right = expr.split("=")
-            equation = sp.Eq(sp.sympify(left), sp.sympify(right))
-            solution = sp.solve(equation)
 
-            return f"The solution is **{solution}**."
+            left,right=expr.split("=")
 
-        result = sp.simplify(expr)
+            eq=sp.Eq(sp.sympify(left),sp.sympify(right))
 
-        return f"The simplified result is **{result}**."
+            sol=sp.solve(eq)
+
+            return f"🧮 Solution: **{sol}**"
+
+        result=sp.simplify(expr)
+
+        return f"🧮 Result: **{result}**"
 
     except:
+
         return None
 
-# -------------------
-# KNOWLEDGE
-# -------------------
 
-def search_knowledge(question):
+# -------------------------
+# GRAPH ENGINE
+# -------------------------
+
+def plot_function(expr):
 
     try:
-        return wikipedia.summary(question, sentences=4)
+
+        x=sp.symbols('x')
+
+        f=sp.sympify(expr)
+
+        func=sp.lambdify(x,f,"numpy")
+
+        xs=np.linspace(-10,10,400)
+
+        ys=func(xs)
+
+        fig,ax=plt.subplots()
+
+        ax.plot(xs,ys)
+
+        ax.set_title(f"Graph of {expr}")
+
+        st.pyplot(fig)
+
+        return True
+
     except:
+
+        return False
+
+
+# -------------------------
+# WIKIPEDIA SEARCH
+# -------------------------
+
+def search_wikipedia(q):
+
+    try:
+
+        return wikipedia.summary(q, sentences=3)
+
+    except:
+
         return None
 
-# -------------------
-# DIAGRAM GENERATOR
-# -------------------
 
-def draw_diagram(topic):
+# -------------------------
+# WEB SEARCH
+# -------------------------
 
-    topic = topic.lower()
+def web_search(q):
 
-    fig, ax = plt.subplots()
+    try:
 
-    if "triangle" in topic:
+        with DDGS() as ddgs:
 
-        ax.plot([0,1],[0,0])
-        ax.plot([1,0.5],[0,1])
-        ax.plot([0.5,0],[1,0])
-        ax.set_title("Triangle")
+            results = list(ddgs.text(q, max_results=3))
 
-    elif "circle" in topic:
+            if results:
 
-        circle = plt.Circle((0,0),1,fill=False)
-        ax.add_patch(circle)
-        ax.set_xlim(-2,2)
-        ax.set_ylim(-2,2)
-        ax.set_title("Circle Diagram")
+                answer = ""
 
-    elif "graph" in topic:
+                for r in results:
+                    answer += f"**{r['title']}**\n{r['body']}\n\n"
 
-        x = np.linspace(-10,10,100)
-        y = x**2
-        ax.plot(x,y)
-        ax.set_title("Graph of y = x²")
+                return answer
 
-    elif "plant cell" in topic:
+    except:
 
-        ax.add_patch(plt.Rectangle((0.2,0.2),0.6,0.6))
-        ax.text(0.5,0.5,"Nucleus",ha="center")
-        ax.set_title("Simple Plant Cell")
+        return None
 
-    else:
+    return None
 
-        ax.text(0.3,0.5,"Diagram Not Available",size=15)
 
-    st.pyplot(fig)
-
-# -------------------
-# SIMPLIFIER
-# -------------------
+# -------------------------
+# SIMPLIFY ENGINE
+# -------------------------
 
 def simplify_text(text):
 
-    sentences = text.split(".")
+    sentences=text.split(".")
 
-    short = sentences[:2]
+    simple=sentences[:2]
 
-    return " ".join(short) + "."
+    result=". ".join(simple)
 
-# -------------------
-# SMARTBOT
-# -------------------
+    replacements={
+        "approximately":"about",
+        "utilize":"use",
+        "numerous":"many",
+        "individuals":"people"
+    }
 
-def ask_ai(prompt):
+    for k,v in replacements.items():
 
-    text = prompt.lower()
+        result=result.replace(k,v)
 
+    return "🧠 Simple explanation:\n\n"+result+"."
+
+
+# -------------------------
+# DIAGRAM SEARCH
+# -------------------------
+
+def get_diagram(topic):
+
+    try:
+
+        url="https://en.wikipedia.org/api/rest_v1/page/summary/"+topic.replace(" ","_")
+
+        res=requests.get(url)
+
+        data=res.json()
+
+        if "thumbnail" in data:
+
+            return data["thumbnail"]["source"]
+
+    except:
+
+        pass
+
+    return None
+
+
+def show_diagram(topic):
+
+    img=get_diagram(topic)
+
+    if img:
+
+        st.image(img, caption=topic)
+
+        return True
+
+    return False
+
+
+# -------------------------
+# PDF READER
+# -------------------------
+
+def read_pdf(file):
+
+    reader=PdfReader(file)
+
+    text=""
+
+    for page in reader.pages:
+
+        text+=page.extract_text()
+
+    return text[:2000]
+
+
+# -------------------------
+# SMARTBOT BRAIN
+# -------------------------
+
+def smartbot(prompt):
+
+    text=prompt.lower()
+
+    # greeting
     if text in ["hi","hello","hey"]:
-        return "Hello! I'm SmartBot AI. Ask me anything about math, science, or history."
+        return "Hello! Ask me about math, science, diagrams, or explanations."
 
-    if "who are you" in text:
-        return "I am SmartBot AI, a knowledge assistant that helps explain topics, solve math, and generate diagrams."
-if "Are you smart" in text:
-        return "I am an AI, a knowledge assisant. It is your wish to decide it."
-if "You are smart" in text:
-        return "Thanks for the compliment."
-    if "You are dumb, You are average, You are bad" in text:
-        return "Thanks for letting me know, I shall improve myself.Please note that as an AI, I do not know human experiences or knowledge"
-
-
-    if text.startswith("solve:"):
-        return solve_math(text.replace("solve:",""))
-
+    # math
     if looks_like_math(text):
-        math = solve_math(text)
+
+        math=solve_math(text)
 
         if math:
             return math
 
-    if "diagram" in text or "draw" in text:
+    # graph
+    if "plot" in text or "graph" in text:
 
-        draw_diagram(text)
+        expr=text.replace("plot","").replace("graph","").replace("y=","").strip()
 
-        return "Here is the diagram."
+        if plot_function(expr):
 
-    knowledge = search_knowledge(prompt)
+            return f"Graph generated for **{expr}**."
+
+    # diagram
+    if "draw" in text or "diagram" in text or "show" in text:
+
+        topic=text.replace("draw","").replace("diagram","").replace("show","").strip()
+
+        if show_diagram(topic):
+
+            return f"Here is a diagram of **{topic}**."
+
+    # wikipedia
+    knowledge=search_wikipedia(prompt)
 
     if knowledge:
 
         if "simple" in text or "simplify" in text:
+
             return simplify_text(knowledge)
 
         return knowledge
 
-    return "I'm not sure about that yet, but try asking about science, history, or math."
+    # web search fallback
+    web=web_search(prompt)
 
-# -------------------
+    if web:
+        return web
+
+    return "I couldn't find a clear answer."
+
+
+# -------------------------
+# SIDEBAR
+# -------------------------
+
+st.sidebar.title("💬 Chats")
+
+if st.sidebar.button("➕ New Chat"):
+    new_chat()
+
+for cid in st.session_state.chats:
+
+    if st.sidebar.button(st.session_state.chats[cid]["title"]):
+        st.session_state.current_chat=cid
+
+if st.session_state.current_chat is None:
+    new_chat()
+
+
+# -------------------------
+# PDF TOOL
+# -------------------------
+
+st.sidebar.title("📄 PDF Reader")
+
+pdf_file=st.sidebar.file_uploader("Upload PDF")
+
+if pdf_file:
+
+    text=read_pdf(pdf_file)
+
+    st.sidebar.write("Preview:")
+
+    st.sidebar.write(text[:500])
+
+
+# -------------------------
 # DISPLAY CHAT
-# -------------------
+# -------------------------
 
-for msg in st.session_state.messages:
+chat=st.session_state.current_chat
+
+messages=st.session_state.chats[chat]["messages"]
+
+for msg in messages:
+
     with st.chat_message(msg["role"]):
+
         st.write(msg["content"])
 
-# -------------------
-# INPUT
-# -------------------
 
-user_prompt = st.chat_input("Ask SmartBot...")
+# -------------------------
+# USER INPUT
+# -------------------------
 
-if user_prompt:
+prompt=st.chat_input("Ask SmartBot...")
 
-    st.session_state.messages.append({"role":"user","content":user_prompt})
+if prompt:
+
+    add_message("user",prompt)
 
     with st.chat_message("user"):
-        st.write(user_prompt)
+        st.write(prompt)
 
-    response = ask_ai(user_prompt)
+    response=smartbot(prompt)
 
     with st.chat_message("assistant"):
         st.write(response)
 
-    st.session_state.messages.append({"role":"assistant","content":response})
+    add_message("assistant",response)
 
-# -------------------
-# SIDEBAR
-# -------------------
+    st.rerun()
 
-st.sidebar.title("Examples")
+
+# -------------------------
+# EXAMPLES
+# -------------------------
+
+st.sidebar.markdown("### Example Prompts")
 
 st.sidebar.markdown("""
-History
 
-Who was Napoleon  
-What caused World War 1  
-
-Science
-
-What is photosynthesis  
-Explain gravity  
-
-Math
-
+Math  
 2*x + 4 = 10  
-simplify x^2 + 2*x + 1  
 
-Diagrams
+Graphs  
+plot y=x^2  
 
-draw triangle diagram  
-draw plant cell diagram  
-draw graph
+Diagrams  
+draw plant cell  
+
+Knowledge  
+What is gravity  
+
+Simplify  
+Explain gravity simply  
+
+Web Search  
+What happened in 2024 AI news
 """)
-
-if st.sidebar.button("Clear Chat"):
-    st.session_state.messages = []
