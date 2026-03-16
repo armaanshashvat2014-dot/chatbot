@@ -8,10 +8,10 @@ import re
 from PyPDF2 import PdfReader
 from duckduckgo_search import DDGS
 
-st.set_page_config(page_title="SmartBot v7", layout="wide")
+st.set_page_config(page_title="SmartBot v8", layout="wide")
 
-st.title("🧠 SmartBot-your mentor, upgraded")
-st.caption("Math • Diagrams • Knowledge • Web Search • Simplified Learning")
+st.title("🧠 SmartBot AI-For anyone & everyone.")
+st.caption("Math • Diagrams • Knowledge • Web Search • Simplified Learning • PDF AI")
 
 # -------------------------
 # SESSION MEMORY
@@ -23,6 +23,13 @@ if "chats" not in st.session_state:
 if "current_chat" not in st.session_state:
     st.session_state.current_chat = None
 
+if "pdf_text" not in st.session_state:
+    st.session_state.pdf_text = ""
+
+
+# -------------------------
+# CHAT FUNCTIONS
+# -------------------------
 
 def new_chat():
 
@@ -81,7 +88,6 @@ def solve_math(expr):
         return f"🧮 Result: **{result}**"
 
     except:
-
         return None
 
 
@@ -114,12 +120,11 @@ def plot_function(expr):
         return True
 
     except:
-
         return False
 
 
 # -------------------------
-# WIKIPEDIA SEARCH
+# WIKIPEDIA
 # -------------------------
 
 def search_wikipedia(q):
@@ -129,7 +134,6 @@ def search_wikipedia(q):
         results = wikipedia.search(q)
 
         if results:
-
             return wikipedia.summary(results[0], sentences=3)
 
     except:
@@ -191,7 +195,7 @@ def simplify_text(text):
 
 
 # -------------------------
-# IMAGE / DIAGRAM SEARCH
+# DIAGRAM SEARCH
 # -------------------------
 
 def get_diagram(topic):
@@ -232,15 +236,47 @@ def show_diagram(topic):
 
 def read_pdf(file):
 
-    reader=PdfReader(file)
+    reader = PdfReader(file)
 
-    text=""
+    text = ""
 
     for page in reader.pages:
 
-        text+=page.extract_text()
+        page_text = page.extract_text()
 
-    return text[:2000]
+        if page_text:
+            text += page_text
+
+    if text.strip()=="":
+        return "⚠️ This PDF contains images instead of selectable text."
+
+    return text
+
+
+def summarize_pdf():
+
+    text = st.session_state.pdf_text
+
+    sentences = text.split(".")
+
+    return "📄 **PDF Summary:**\n\n" + ". ".join(sentences[:5])
+
+
+def answer_pdf(question):
+
+    text = st.session_state.pdf_text.lower()
+
+    words = question.lower().split()
+
+    sentences = text.split(".")
+
+    for s in sentences:
+
+        if any(w in s for w in words):
+
+            return "📄 From PDF:\n\n" + s.strip()
+
+    return "I couldn't find that in the PDF."
 
 
 # -------------------------
@@ -251,9 +287,8 @@ def smartbot(prompt):
 
     text=prompt.lower()
 
-    # greeting
     if text in ["hi","hello","hey"]:
-        return "Hello! Ask me about math, science, diagrams, or explanations."
+        return "Hello! Ask me about math, science, diagrams, or PDFs."
 
     # math
     if looks_like_math(text):
@@ -271,7 +306,7 @@ def smartbot(prompt):
         if plot_function(expr):
             return f"Graph generated for **{expr}**."
 
-    # diagram / image detection
+    # diagram
     if any(word in text for word in [
         "draw","diagram","show","image","picture","pic","photo"
     ]):
@@ -287,6 +322,15 @@ def smartbot(prompt):
 
         if show_diagram(topic):
             return f"Here is a diagram of **{topic}**."
+
+    # pdf question
+    if st.session_state.pdf_text:
+
+        if "summarize pdf" in text:
+            return summarize_pdf()
+
+        if "pdf" in text:
+            return answer_pdf(text.replace("pdf",""))
 
     # wikipedia
     knowledge=search_wikipedia(prompt)
@@ -329,15 +373,17 @@ if st.session_state.current_chat is None:
 # PDF TOOL
 # -------------------------
 
-st.sidebar.title("📄 PDF Reader")
+st.sidebar.title("📄 PDF Tool")
 
-pdf_file=st.sidebar.file_uploader("Upload PDF")
+pdf_file = st.sidebar.file_uploader("Upload PDF")
 
 if pdf_file:
 
-    text=read_pdf(pdf_file)
+    text = read_pdf(pdf_file)
 
-    st.sidebar.write("Preview:")
+    st.session_state.pdf_text = text
+
+    st.sidebar.success("PDF loaded!")
 
     st.sidebar.write(text[:500])
 
@@ -346,9 +392,9 @@ if pdf_file:
 # DISPLAY CHAT
 # -------------------------
 
-chat=st.session_state.current_chat
+chat = st.session_state.current_chat
 
-messages=st.session_state.chats[chat]["messages"]
+messages = st.session_state.chats[chat]["messages"]
 
 for msg in messages:
 
@@ -360,7 +406,7 @@ for msg in messages:
 # USER INPUT
 # -------------------------
 
-prompt=st.chat_input("Ask SmartBot...")
+prompt = st.chat_input("Ask SmartBot...")
 
 if prompt:
 
@@ -369,7 +415,7 @@ if prompt:
     with st.chat_message("user"):
         st.write(prompt)
 
-    response=smartbot(prompt)
+    response = smartbot(prompt)
 
     with st.chat_message("assistant"):
         st.write(response)
@@ -380,10 +426,10 @@ if prompt:
 
 
 # -------------------------
-# HELP
+# EXAMPLES
 # -------------------------
 
-st.sidebar.markdown("### Example Prompts")
+st.sidebar.markdown("### Try Asking")
 
 st.sidebar.markdown("""
 
@@ -393,9 +439,16 @@ Math
 Graphs  
 plot y=x^2  
 
+Images  
+pic of atom  
+
 Knowledge  
 Who was Napoleon  
 
 Simplify  
-Explain gravity simply
+Explain gravity simply  
+
+PDF  
+summarize pdf  
+what is the pdf about
 """)
