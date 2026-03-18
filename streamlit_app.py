@@ -10,7 +10,7 @@ from duckduckgo_search import DDGS
 
 st.set_page_config(page_title="SmartBot v8", layout="wide")
 
-st.title("🧠 SmartBot AI-For anyone & everyone.")
+st.title("🧠 SmartBot AI-By MentorLoop EDU.")
 st.caption("Math • Diagrams • Knowledge • Web Search • Simplified Learning • PDF AI")
 
 # -------------------------
