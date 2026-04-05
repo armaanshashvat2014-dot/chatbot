@@ -3,7 +3,6 @@ import sympy as sp
 import wikipedia
 import matplotlib.pyplot as plt
 import numpy as np
-import requests
 from PyPDF2 import PdfReader
 from duckduckgo_search import DDGS
 import random
@@ -12,10 +11,10 @@ from collections import Counter
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-st.set_page_config(page_title="SmartBot AI Ultimate", layout="wide")
+st.set_page_config(page_title="SmartBot AI", layout="wide")
 
-st.title("🚀 SmartBot AI - Ultimate Offline")
-st.caption("PDF AI • Semantic Search • Quiz • Gamified Learning")
+st.title("🧠 SmartBot AI")
+st.caption("SmartBot AI • Math • PDF • Knowledge")
 
 # -------------------------
 # STATE
@@ -25,37 +24,23 @@ for key, default in {
     "pdf_text": "",
     "points": 0,
     "history": [],
-    "weak_topics": [],
-    "leaderboard": {"You": 0}
+    "weak_topics": []
 }.items():
     if key not in st.session_state:
         st.session_state[key] = default
 
 # -------------------------
-# MODES
-# -------------------------
-
-mode = st.sidebar.radio("🧠 Mode", [
-    "📘 Study",
-    "🧪 Quiz",
-    "⚡ Quick",
-    "🧠 Deep Explain"
-])
-
-eli10 = st.sidebar.checkbox("Explain like I'm 10")
-
-# -------------------------
 # PERSONALITY
 # -------------------------
 
-def personality_response(text):
+def personality(text):
     t = text.lower()
 
     if t in ["hi", "hello", "hey"]:
-        return "Hey 👋 I’m SmartBot AI. Ready to learn something cool today?"
+        return "Hey 👋 I’m SmartBot AI. What do you want to learn today?"
 
     if "how are you" in t:
-        return "I’m doing great 🚀 What do you want to learn today?"
+        return "I’m doing great 🚀 Let’s learn something interesting!"
 
     if "what can you do" in t:
         return """I can:
@@ -63,21 +48,13 @@ def personality_response(text):
 📄 Understand PDFs  
 📊 Plot graphs  
 🧪 Generate quizzes  
-📚 Explain concepts  
-Try me 😎"""
-
-    if len(t.split()) <= 2:
-        return "Give me a bit more detail so I can help better 😊"
+📚 Explain concepts"""
 
     return None
 
 # -------------------------
-# MATH (FIXED)
+# MATH (SAFE)
 # -------------------------
-
-def looks_like_math(text):
-    allowed = "0123456789+-*/^=().x "
-    return all(c.lower() in allowed for c in text.strip())
 
 def solve_math(expr):
     try:
@@ -86,15 +63,15 @@ def solve_math(expr):
         if "=" in expr:
             left, right = expr.split("=")
             eq = sp.Eq(sp.sympify(left), sp.sympify(right))
-            sol = sp.solve(eq)
-            return f"🧮 Solution: {sol}"
+            return f"🧮 Solution: {sp.solve(eq)}"
 
-        result = sp.simplify(expr)
+        if any(c.isdigit() for c in expr):
+            result = sp.simplify(expr)
 
-        if result is True or result is False:
-            return None
+            if result is True or result is False:
+                return None
 
-        return f"🧮 Result: {result}"
+            return f"🧮 Result: {result}"
 
     except:
         return None
@@ -138,6 +115,7 @@ def chunk_text(text, size=400):
 
 def semantic_search(question):
     chunks = chunk_text(st.session_state.pdf_text)
+
     vectorizer = TfidfVectorizer(stop_words="english")
     vectors = vectorizer.fit_transform(chunks)
 
@@ -146,7 +124,7 @@ def semantic_search(question):
 
     top = scores.argsort()[-3:][::-1]
 
-    result = "📄 **From your PDF:**\n\n"
+    result = "📄 From your PDF:\n\n"
     for i in top:
         result += chunks[i][:300] + "\n\n"
 
@@ -154,11 +132,36 @@ def semantic_search(question):
 
 def summarize_pdf():
     chunks = chunk_text(st.session_state.pdf_text)
-    return "📄 Summary:\n\n" + "\n\n".join(c[:250] for c in chunks[:3])
+    return "📄 Summary:\n\n" + "\n\n".join(c[:200] for c in chunks[:3])
 
-def extract_topics(text):
-    words = re.findall(r'\b[a-zA-Z]{4,}\b', text.lower())
-    return [w for w, _ in Counter(words).most_common(10)]
+# -------------------------
+# KNOWLEDGE ENGINE (FIXED)
+# -------------------------
+
+def wiki_answer(prompt):
+    try:
+        results = wikipedia.search(prompt)
+
+        if not results:
+            return None
+
+        return wikipedia.summary(results[0], sentences=3)
+
+    except:
+        return None
+
+def web_answer(prompt):
+    try:
+        with DDGS() as ddgs:
+            results = list(ddgs.text(prompt, max_results=2))
+
+            if results:
+                return results[0]["body"]
+
+    except:
+        pass
+
+    return None
 
 # -------------------------
 # QUIZ
@@ -174,14 +177,6 @@ def generate_quiz(text):
     return quiz
 
 # -------------------------
-# SIMPLIFY
-# -------------------------
-
-def simplify(text):
-    s = text.split(".")
-    return "🧠 Simple:\n\n" + ". ".join(s[:2])
-
-# -------------------------
 # MAIN AI
 # -------------------------
 
@@ -190,15 +185,14 @@ def smartbot(prompt):
     text = prompt.lower()
 
     # personality
-    p = personality_response(prompt)
+    p = personality(prompt)
     if p:
         return p
 
-    # math (ONLY if it looks like math)
-    if looks_like_math(prompt):
-        m = solve_math(prompt)
-        if m:
-            return m
+    # math
+    m = solve_math(prompt)
+    if m:
+        return m
 
     # graph
     if "plot" in text:
@@ -215,34 +209,22 @@ def smartbot(prompt):
         if "pdf" in text:
             return semantic_search(prompt)
 
-    # Wikipedia (concept questions)
-    try:
-        if "what is" in text or "who is" in text:
-            topic = text.replace("what is", "").replace("who is", "")
-            res = wikipedia.summary(topic, sentences=2)
-            if eli10:
-                return simplify(res)
-            return "📘 " + res
-    except:
-        pass
+    # KNOWLEDGE (FIXED)
+    wiki = wiki_answer(prompt)
+    if wiki:
+        return "📘 " + wiki
 
-    # fallback wiki
-    try:
-        res = wikipedia.summary(prompt, sentences=2)
-        return "📚 " + res
-    except:
-        pass
+    # WEB
+    web = web_answer(prompt)
+    if web:
+        return "🌐 " + web
 
-    # web fallback
-    try:
-        with DDGS() as ddgs:
-            results = list(ddgs.text(prompt, max_results=1))
-            if results:
-                return "🌐 " + results[0]["body"]
-    except:
-        pass
+    return """🤔 I couldn’t find a strong answer.
 
-    return "Hmm… I couldn’t find a strong answer. Try rephrasing or upload a PDF 📄"
+Try:
+• Asking more clearly  
+• Or upload a PDF 📄  
+"""
 
 # -------------------------
 # UI
@@ -255,22 +237,6 @@ if uploaded:
     st.sidebar.success("PDF Loaded!")
 
 st.sidebar.write("🏆 Points:", st.session_state.points)
-st.sidebar.progress(min(st.session_state.points / 100, 1.0))
-
-if st.session_state.pdf_text:
-    st.sidebar.subheader("📚 Topics")
-    st.sidebar.write(", ".join(extract_topics(st.session_state.pdf_text)))
-
-st.sidebar.subheader("⚠️ Weak Areas")
-st.sidebar.write(st.session_state.weak_topics[-5:])
-
-st.sidebar.subheader("📊 Stats")
-st.sidebar.write("Questions:", len(st.session_state.history))
-
-st.session_state.leaderboard["You"] = st.session_state.points
-st.sidebar.subheader("🏆 Leaderboard")
-for u, p in st.session_state.leaderboard.items():
-    st.sidebar.write(f"{u}: {p}")
 
 prompt = st.chat_input("Ask anything...")
 
@@ -282,6 +248,3 @@ if prompt:
     st.chat_message("assistant").write(response)
 
     st.session_state.points += 5
-
-    if "couldn’t" in response.lower():
-        st.session_state.weak_topics.append(prompt)
