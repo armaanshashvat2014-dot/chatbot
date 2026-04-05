@@ -5,4 +5,5 @@ matplotlib
 numpy
 requests
 PyPDF2
-duckduckgo-search>=5.0.0
+duckduckgo-search
+scikit-learn
