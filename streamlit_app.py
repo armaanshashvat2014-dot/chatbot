@@ -12,9 +12,9 @@ from collections import Counter
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-st.set_page_config(page_title="MentorLoop AI Ultimate", layout="wide")
+st.set_page_config(page_title="MentorLoop EDU AI ", layout="wide")
 
-st.title("🚀 MentorLoop AI - Ultimate Offline")
+st.title("🚀 SmartBot AI - Ultimate Mentor")
 st.caption("PDF AI • Semantic Search • Quiz • Gamified Learning")
 
 # -------------------------
