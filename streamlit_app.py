@@ -12,9 +12,9 @@ from collections import Counter
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-st.set_page_config(page_title="MentorLoop AI Ultimate", layout="wide")
+st.set_page_config(page_title="SmartBot AI Ultimate", layout="wide")
 
-st.title("🚀 MentorLoop AI - Ultimate Offline")
+st.title("🚀 SmartBot AI - Ultimate Offline")
 st.caption("PDF AI • Semantic Search • Quiz • Gamified Learning")
 
 # -------------------------
@@ -52,7 +52,7 @@ def personality_response(text):
     t = text.lower()
 
     if t in ["hi", "hello", "hey"]:
-        return "Hey 👋 I’m MentorLoop AI. Ready to learn something cool today?"
+        return "Hey 👋 I’m SmartBot AI. Ready to learn something cool today?"
 
     if "how are you" in t:
         return "I’m doing great 🚀 What do you want to learn today?"
