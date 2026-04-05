@@ -12,9 +12,9 @@ from collections import Counter
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-st.set_page_config(page_title="MentorLoop EDU AI ", layout="wide")
+st.set_page_config(page_title="MentorLoop AI Ultimate", layout="wide")
 
-st.title("🚀 SmartBot AI - Ultimate Mentor")
+st.title("🚀 MentorLoop AI - Ultimate Offline")
 st.caption("PDF AI • Semantic Search • Quiz • Gamified Learning")
 
 # -------------------------
@@ -45,6 +45,81 @@ mode = st.sidebar.radio("🧠 Mode", [
 eli10 = st.sidebar.checkbox("Explain like I'm 10")
 
 # -------------------------
+# PERSONALITY
+# -------------------------
+
+def personality_response(text):
+    t = text.lower()
+
+    if t in ["hi", "hello", "hey"]:
+        return "Hey 👋 I’m MentorLoop AI. Ready to learn something cool today?"
+
+    if "how are you" in t:
+        return "I’m doing great 🚀 What do you want to learn today?"
+
+    if "what can you do" in t:
+        return """I can:
+🧮 Solve math  
+📄 Understand PDFs  
+📊 Plot graphs  
+🧪 Generate quizzes  
+📚 Explain concepts  
+Try me 😎"""
+
+    if len(t.split()) <= 2:
+        return "Give me a bit more detail so I can help better 😊"
+
+    return None
+
+# -------------------------
+# MATH (FIXED)
+# -------------------------
+
+def looks_like_math(text):
+    allowed = "0123456789+-*/^=().x "
+    return all(c.lower() in allowed for c in text.strip())
+
+def solve_math(expr):
+    try:
+        x = sp.symbols('x')
+
+        if "=" in expr:
+            left, right = expr.split("=")
+            eq = sp.Eq(sp.sympify(left), sp.sympify(right))
+            sol = sp.solve(eq)
+            return f"🧮 Solution: {sol}"
+
+        result = sp.simplify(expr)
+
+        if result is True or result is False:
+            return None
+
+        return f"🧮 Result: {result}"
+
+    except:
+        return None
+
+# -------------------------
+# GRAPH
+# -------------------------
+
+def plot(expr):
+    try:
+        x = sp.symbols('x')
+        f = sp.sympify(expr)
+        func = sp.lambdify(x, f, "numpy")
+
+        xs = np.linspace(-10, 10, 400)
+        ys = func(xs)
+
+        fig, ax = plt.subplots()
+        ax.plot(xs, ys)
+        st.pyplot(fig)
+        return True
+    except:
+        return False
+
+# -------------------------
 # PDF ENGINE
 # -------------------------
 
@@ -71,7 +146,7 @@ def semantic_search(question):
 
     top = scores.argsort()[-3:][::-1]
 
-    result = "📄 **Smart Answer:**\n\n"
+    result = "📄 **From your PDF:**\n\n"
     for i in top:
         result += chunks[i][:300] + "\n\n"
 
@@ -79,7 +154,7 @@ def semantic_search(question):
 
 def summarize_pdf():
     chunks = chunk_text(st.session_state.pdf_text)
-    return "📄 **Summary:**\n\n" + "\n\n".join(c[:250] for c in chunks[:3])
+    return "📄 Summary:\n\n" + "\n\n".join(c[:250] for c in chunks[:3])
 
 def extract_topics(text):
     words = re.findall(r'\b[a-zA-Z]{4,}\b', text.lower())
@@ -99,41 +174,6 @@ def generate_quiz(text):
     return quiz
 
 # -------------------------
-# MATH
-# -------------------------
-
-def solve_math(expr):
-    try:
-        x = sp.symbols('x')
-        if "=" in expr:
-            left, right = expr.split("=")
-            eq = sp.Eq(sp.sympify(left), sp.sympify(right))
-            return f"🧮 Solution: {sp.solve(eq)}"
-        return f"🧮 Result: {sp.simplify(expr)}"
-    except:
-        return None
-
-# -------------------------
-# GRAPH
-# -------------------------
-
-def plot(expr):
-    try:
-        x = sp.symbols('x')
-        f = sp.sympify(expr)
-        func = sp.lambdify(x, f, "numpy")
-
-        xs = np.linspace(-10, 10, 400)
-        ys = func(xs)
-
-        fig, ax = plt.subplots()
-        ax.plot(xs, ys)
-        st.pyplot(fig)
-        return True
-    except:
-        return False
-
-# -------------------------
 # SIMPLIFY
 # -------------------------
 
@@ -142,55 +182,67 @@ def simplify(text):
     return "🧠 Simple:\n\n" + ". ".join(s[:2])
 
 # -------------------------
-# SMARTBOT
+# MAIN AI
 # -------------------------
 
 def smartbot(prompt):
     st.session_state.history.append(prompt)
     text = prompt.lower()
 
-    # math
-    m = solve_math(prompt)
-    if m:
-        return m
+    # personality
+    p = personality_response(prompt)
+    if p:
+        return p
+
+    # math (ONLY if it looks like math)
+    if looks_like_math(prompt):
+        m = solve_math(prompt)
+        if m:
+            return m
 
     # graph
     if "plot" in text:
         expr = text.replace("plot", "").strip()
         if plot(expr):
-            return "Graph generated."
+            return "📊 Graph generated."
 
     # PDF
     if st.session_state.pdf_text:
-
         if "summary" in text:
             return summarize_pdf()
-
         if "quiz" in text:
             return generate_quiz(st.session_state.pdf_text)
-
         if "pdf" in text:
             return semantic_search(prompt)
 
-    # Wikipedia
+    # Wikipedia (concept questions)
     try:
-        res = wikipedia.summary(prompt, sentences=3)
-        if eli10:
-            return simplify(res)
-        return res
+        if "what is" in text or "who is" in text:
+            topic = text.replace("what is", "").replace("who is", "")
+            res = wikipedia.summary(topic, sentences=2)
+            if eli10:
+                return simplify(res)
+            return "📘 " + res
     except:
         pass
 
-    # Web
+    # fallback wiki
+    try:
+        res = wikipedia.summary(prompt, sentences=2)
+        return "📚 " + res
+    except:
+        pass
+
+    # web fallback
     try:
         with DDGS() as ddgs:
-            results = list(ddgs.text(prompt, max_results=2))
+            results = list(ddgs.text(prompt, max_results=1))
             if results:
-                return results[0]["body"]
+                return "🌐 " + results[0]["body"]
     except:
         pass
 
-    return "No clear answer found."
+    return "Hmm… I couldn’t find a strong answer. Try rephrasing or upload a PDF 📄"
 
 # -------------------------
 # UI
@@ -202,7 +254,6 @@ if uploaded:
     st.session_state.pdf_text = read_pdf(uploaded)
     st.sidebar.success("PDF Loaded!")
 
-# Sidebar info
 st.sidebar.write("🏆 Points:", st.session_state.points)
 st.sidebar.progress(min(st.session_state.points / 100, 1.0))
 
@@ -221,7 +272,6 @@ st.sidebar.subheader("🏆 Leaderboard")
 for u, p in st.session_state.leaderboard.items():
     st.sidebar.write(f"{u}: {p}")
 
-# Chat
 prompt = st.chat_input("Ask anything...")
 
 if prompt:
@@ -233,5 +283,5 @@ if prompt:
 
     st.session_state.points += 5
 
-    if "not" in response.lower():
+    if "couldn’t" in response.lower():
         st.session_state.weak_topics.append(prompt)
