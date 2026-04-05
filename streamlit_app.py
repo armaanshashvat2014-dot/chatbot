@@ -4,451 +4,234 @@ import wikipedia
 import matplotlib.pyplot as plt
 import numpy as np
 import requests
-import re
 from PyPDF2 import PdfReader
 from duckduckgo_search import DDGS
+import random
+import re
+from collections import Counter
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
-st.set_page_config(page_title="SmartBot v8", layout="wide")
+st.set_page_config(page_title="MentorLoop AI Ultimate", layout="wide")
 
-st.title("🧠 SmartBot AI-By MentorLoop EDU.")
-st.caption("Math • Diagrams • Knowledge • Web Search • Simplified Learning • PDF AI")
-
-# -------------------------
-# SESSION MEMORY
-# -------------------------
-
-if "chats" not in st.session_state:
-    st.session_state.chats = {}
-
-if "current_chat" not in st.session_state:
-    st.session_state.current_chat = None
-
-if "pdf_text" not in st.session_state:
-    st.session_state.pdf_text = ""
-
+st.title("🚀 MentorLoop AI - Ultimate Offline")
+st.caption("PDF AI • Semantic Search • Quiz • Gamified Learning")
 
 # -------------------------
-# CHAT FUNCTIONS
+# STATE
 # -------------------------
 
-def new_chat():
-
-    cid = f"chat{len(st.session_state.chats)+1}"
-
-    st.session_state.chats[cid] = {
-        "title":"New Chat",
-        "messages":[]
-    }
-
-    st.session_state.current_chat = cid
-
-
-def add_message(role,text):
-
-    chat = st.session_state.current_chat
-
-    st.session_state.chats[chat]["messages"].append({
-        "role":role,
-        "content":text
-    })
-
-    if st.session_state.chats[chat]["title"]=="New Chat":
-        st.session_state.chats[chat]["title"]=text[:30]
-
+for key, default in {
+    "pdf_text": "",
+    "points": 0,
+    "history": [],
+    "weak_topics": [],
+    "leaderboard": {"You": 0}
+}.items():
+    if key not in st.session_state:
+        st.session_state[key] = default
 
 # -------------------------
-# MATH ENGINE
+# MODES
 # -------------------------
 
-def looks_like_math(text):
+mode = st.sidebar.radio("🧠 Mode", [
+    "📘 Study",
+    "🧪 Quiz",
+    "⚡ Quick",
+    "🧠 Deep Explain"
+])
 
-    math_chars = "0123456789+-*/^=().x "
-
-    return all(c.lower() in math_chars for c in text)
-
-
-def solve_math(expr):
-
-    try:
-
-        x=sp.symbols('x')
-
-        if "=" in expr:
-
-            left,right=expr.split("=")
-
-            eq=sp.Eq(sp.sympify(left),sp.sympify(right))
-
-            sol=sp.solve(eq)
-
-            return f"🧮 Solution: **{sol}**"
-
-        result=sp.simplify(expr)
-
-        return f"🧮 Result: **{result}**"
-
-    except:
-        return None
-
+eli10 = st.sidebar.checkbox("Explain like I'm 10")
 
 # -------------------------
-# GRAPH ENGINE
-# -------------------------
-
-def plot_function(expr):
-
-    try:
-
-        x=sp.symbols('x')
-
-        f=sp.sympify(expr)
-
-        func=sp.lambdify(x,f,"numpy")
-
-        xs=np.linspace(-10,10,400)
-
-        ys=func(xs)
-
-        fig,ax=plt.subplots()
-
-        ax.plot(xs,ys)
-
-        ax.set_title(f"Graph of {expr}")
-
-        st.pyplot(fig)
-
-        return True
-
-    except:
-        return False
-
-
-# -------------------------
-# WIKIPEDIA
-# -------------------------
-
-def search_wikipedia(q):
-
-    try:
-
-        results = wikipedia.search(q)
-
-        if results:
-            return wikipedia.summary(results[0], sentences=3)
-
-    except:
-        pass
-
-    return None
-
-
-# -------------------------
-# WEB SEARCH
-# -------------------------
-
-def web_search(q):
-
-    try:
-
-        with DDGS() as ddgs:
-
-            results = list(ddgs.text(q, max_results=3))
-
-            if results:
-
-                answer = ""
-
-                for r in results:
-                    answer += f"**{r['title']}**\n{r['body']}\n\n"
-
-                return answer
-
-    except:
-        pass
-
-    return None
-
-
-# -------------------------
-# SIMPLIFY ENGINE
-# -------------------------
-
-def simplify_text(text):
-
-    sentences=text.split(".")
-
-    simple=sentences[:2]
-
-    result=". ".join(simple)
-
-    replacements={
-        "approximately":"about",
-        "utilize":"use",
-        "numerous":"many",
-        "individuals":"people"
-    }
-
-    for k,v in replacements.items():
-        result=result.replace(k,v)
-
-    return "🧠 Simple explanation:\n\n"+result+"."
-
-
-# -------------------------
-# DIAGRAM SEARCH
-# -------------------------
-
-def get_diagram(topic):
-
-    try:
-
-        url="https://en.wikipedia.org/api/rest_v1/page/summary/"+topic.replace(" ","_")
-
-        res=requests.get(url)
-
-        data=res.json()
-
-        if "thumbnail" in data:
-            return data["thumbnail"]["source"]
-
-    except:
-        pass
-
-    return None
-
-
-def show_diagram(topic):
-
-    img=get_diagram(topic)
-
-    if img:
-
-        st.image(img, caption=topic)
-
-        return True
-
-    return False
-
-
-# -------------------------
-# PDF READER
+# PDF ENGINE
 # -------------------------
 
 def read_pdf(file):
-
     reader = PdfReader(file)
-
     text = ""
-
-    for page in reader.pages:
-
-        page_text = page.extract_text()
-
-        if page_text:
-            text += page_text
-
-    if text.strip()=="":
-        return "⚠️ This PDF contains images instead of selectable text."
-
+    for p in reader.pages:
+        t = p.extract_text()
+        if t:
+            text += t
     return text
 
+def chunk_text(text, size=400):
+    words = text.split()
+    return [" ".join(words[i:i+size]) for i in range(0, len(words), size)]
+
+def semantic_search(question):
+    chunks = chunk_text(st.session_state.pdf_text)
+    vectorizer = TfidfVectorizer(stop_words="english")
+    vectors = vectorizer.fit_transform(chunks)
+
+    q_vec = vectorizer.transform([question])
+    scores = cosine_similarity(q_vec, vectors).flatten()
+
+    top = scores.argsort()[-3:][::-1]
+
+    result = "📄 **Smart Answer:**\n\n"
+    for i in top:
+        result += chunks[i][:300] + "\n\n"
+
+    return result
 
 def summarize_pdf():
+    chunks = chunk_text(st.session_state.pdf_text)
+    return "📄 **Summary:**\n\n" + "\n\n".join(c[:250] for c in chunks[:3])
 
-    text = st.session_state.pdf_text
-
-    sentences = text.split(".")
-
-    return "📄 **PDF Summary:**\n\n" + ". ".join(sentences[:5])
-
-
-def answer_pdf(question):
-
-    text = st.session_state.pdf_text.lower()
-
-    words = question.lower().split()
-
-    sentences = text.split(".")
-
-    for s in sentences:
-
-        if any(w in s for w in words):
-
-            return "📄 From PDF:\n\n" + s.strip()
-
-    return "I couldn't find that in the PDF."
-
+def extract_topics(text):
+    words = re.findall(r'\b[a-zA-Z]{4,}\b', text.lower())
+    return [w for w, _ in Counter(words).most_common(10)]
 
 # -------------------------
-# SMARTBOT BRAIN
+# QUIZ
+# -------------------------
+
+def generate_quiz(text):
+    sentences = text.split(".")
+    random.shuffle(sentences)
+
+    quiz = "🧪 Quiz:\n\n"
+    for i in range(5):
+        quiz += f"Q{i+1}: What does this refer to?\n{sentences[i][:80]}...\n\n"
+    return quiz
+
+# -------------------------
+# MATH
+# -------------------------
+
+def solve_math(expr):
+    try:
+        x = sp.symbols('x')
+        if "=" in expr:
+            left, right = expr.split("=")
+            eq = sp.Eq(sp.sympify(left), sp.sympify(right))
+            return f"🧮 Solution: {sp.solve(eq)}"
+        return f"🧮 Result: {sp.simplify(expr)}"
+    except:
+        return None
+
+# -------------------------
+# GRAPH
+# -------------------------
+
+def plot(expr):
+    try:
+        x = sp.symbols('x')
+        f = sp.sympify(expr)
+        func = sp.lambdify(x, f, "numpy")
+
+        xs = np.linspace(-10, 10, 400)
+        ys = func(xs)
+
+        fig, ax = plt.subplots()
+        ax.plot(xs, ys)
+        st.pyplot(fig)
+        return True
+    except:
+        return False
+
+# -------------------------
+# SIMPLIFY
+# -------------------------
+
+def simplify(text):
+    s = text.split(".")
+    return "🧠 Simple:\n\n" + ". ".join(s[:2])
+
+# -------------------------
+# SMARTBOT
 # -------------------------
 
 def smartbot(prompt):
-
-    text=prompt.lower()
-
-    if text in ["hi","hello","hey"]:
-        return "Hello! Ask me about math, science, diagrams, or PDFs."
+    st.session_state.history.append(prompt)
+    text = prompt.lower()
 
     # math
-    if looks_like_math(text):
-
-        math=solve_math(text)
-
-        if math:
-            return math
+    m = solve_math(prompt)
+    if m:
+        return m
 
     # graph
-    if "plot" in text or "graph" in text:
+    if "plot" in text:
+        expr = text.replace("plot", "").strip()
+        if plot(expr):
+            return "Graph generated."
 
-        expr=text.replace("plot","").replace("graph","").replace("y=","").strip()
-
-        if plot_function(expr):
-            return f"Graph generated for **{expr}**."
-
-    # diagram
-    if any(word in text for word in [
-        "draw","diagram","show","image","picture","pic","photo"
-    ]):
-
-        topic=text
-
-        for w in [
-            "draw","diagram","show","image","picture","pic","photo","of"
-        ]:
-            topic=topic.replace(w,"")
-
-        topic=topic.strip()
-
-        if show_diagram(topic):
-            return f"Here is a diagram of **{topic}**."
-
-    # pdf question
+    # PDF
     if st.session_state.pdf_text:
 
-        if "summarize pdf" in text:
+        if "summary" in text:
             return summarize_pdf()
 
+        if "quiz" in text:
+            return generate_quiz(st.session_state.pdf_text)
+
         if "pdf" in text:
-            return answer_pdf(text.replace("pdf",""))
+            return semantic_search(prompt)
 
-    # wikipedia
-    knowledge=search_wikipedia(prompt)
+    # Wikipedia
+    try:
+        res = wikipedia.summary(prompt, sentences=3)
+        if eli10:
+            return simplify(res)
+        return res
+    except:
+        pass
 
-    if knowledge:
+    # Web
+    try:
+        with DDGS() as ddgs:
+            results = list(ddgs.text(prompt, max_results=2))
+            if results:
+                return results[0]["body"]
+    except:
+        pass
 
-        if "simple" in text or "simplify" in text:
-            return simplify_text(knowledge)
-
-        return knowledge
-
-    # web fallback
-    web=web_search(prompt)
-
-    if web:
-        return web
-
-    return "I couldn't find a clear answer."
-
-
-# -------------------------
-# SIDEBAR
-# -------------------------
-
-st.sidebar.title("💬 Chats")
-
-if st.sidebar.button("➕ New Chat"):
-    new_chat()
-
-for cid in st.session_state.chats:
-
-    if st.sidebar.button(st.session_state.chats[cid]["title"]):
-        st.session_state.current_chat=cid
-
-if st.session_state.current_chat is None:
-    new_chat()
-
+    return "No clear answer found."
 
 # -------------------------
-# PDF TOOL
+# UI
 # -------------------------
 
-st.sidebar.title("📄 PDF Tool")
+uploaded = st.sidebar.file_uploader("📄 Upload PDF")
 
-pdf_file = st.sidebar.file_uploader("Upload PDF")
+if uploaded:
+    st.session_state.pdf_text = read_pdf(uploaded)
+    st.sidebar.success("PDF Loaded!")
 
-if pdf_file:
+# Sidebar info
+st.sidebar.write("🏆 Points:", st.session_state.points)
+st.sidebar.progress(min(st.session_state.points / 100, 1.0))
 
-    text = read_pdf(pdf_file)
+if st.session_state.pdf_text:
+    st.sidebar.subheader("📚 Topics")
+    st.sidebar.write(", ".join(extract_topics(st.session_state.pdf_text)))
 
-    st.session_state.pdf_text = text
+st.sidebar.subheader("⚠️ Weak Areas")
+st.sidebar.write(st.session_state.weak_topics[-5:])
 
-    st.sidebar.success("PDF loaded!")
+st.sidebar.subheader("📊 Stats")
+st.sidebar.write("Questions:", len(st.session_state.history))
 
-    st.sidebar.write(text[:500])
+st.session_state.leaderboard["You"] = st.session_state.points
+st.sidebar.subheader("🏆 Leaderboard")
+for u, p in st.session_state.leaderboard.items():
+    st.sidebar.write(f"{u}: {p}")
 
-
-# -------------------------
-# DISPLAY CHAT
-# -------------------------
-
-chat = st.session_state.current_chat
-
-messages = st.session_state.chats[chat]["messages"]
-
-for msg in messages:
-
-    with st.chat_message(msg["role"]):
-        st.write(msg["content"])
-
-
-# -------------------------
-# USER INPUT
-# -------------------------
-
-prompt = st.chat_input("Ask SmartBot...")
+# Chat
+prompt = st.chat_input("Ask anything...")
 
 if prompt:
-
-    add_message("user",prompt)
-
-    with st.chat_message("user"):
-        st.write(prompt)
+    st.chat_message("user").write(prompt)
 
     response = smartbot(prompt)
 
-    with st.chat_message("assistant"):
-        st.write(response)
+    st.chat_message("assistant").write(response)
 
-    add_message("assistant",response)
+    st.session_state.points += 5
 
-    st.rerun()
-
-
-# -------------------------
-# EXAMPLES
-# -------------------------
-
-st.sidebar.markdown("### Try Asking")
-
-st.sidebar.markdown("""
-
-Math  
-2*x + 4 = 10  
-
-Graphs  
-plot y=x^2  
-
-Images  
-pic of atom  
-
-Knowledge  
-Who was Napoleon  
-
-Simplify  
-Explain gravity simply  
-
-PDF  
-summarize pdf  
-what is the pdf about
-""")
+    if "not" in response.lower():
+        st.session_state.weak_topics.append(prompt)
