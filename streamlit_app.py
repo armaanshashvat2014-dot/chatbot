@@ -11,10 +11,10 @@ from collections import Counter
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-st.set_page_config(page_title="SmartBot AI", layout="wide")
+st.set_page_config(page_title="MentorLoop AI", layout="wide")
 
-st.title("🧠 SmartBot AI")
-st.caption("SmartBot AI • Math • PDF • Knowledge")
+st.title("🧠 MentorLoop AI")
+st.caption("Smart Learning AI • Math • PDF • Knowledge")
 
 # -------------------------
 # STATE
@@ -37,7 +37,7 @@ def personality(text):
     t = text.lower()
 
     if t in ["hi", "hello", "hey"]:
-        return "Hey 👋 I’m SmartBot AI. What do you want to learn today?"
+        return "Hey 👋 I’m MentorLoop AI. What do you want to learn today?"
 
     if "how are you" in t:
         return "I’m doing great 🚀 Let’s learn something interesting!"
